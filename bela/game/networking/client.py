@@ -60,12 +60,12 @@ class Client:
         self.play_btn = Button(
             self.display,
             (0, 530),
-            (720, 95),
+            (650, 70),
             self.assets.font32,
             center_x=False,
             text="PLAY",
+            color=Color.black,
             font_color=Color.white,
-            img=self.assets.default_btn_shadow,
             bold=True,
             text_orientation="left",
             padding=40
@@ -74,12 +74,12 @@ class Client:
         self.options_btn = Button(
             self.display,
             (-100, 450),
-            (720, 95),
+            (650, 70),
             self.assets.font32,
             center_x=False,
             text="OPTIONS",
+            color=Color.black,
             font_color=Color.white,
-            img=self.assets.default_btn_shadow,
             bold=True,
             text_orientation="left",
             padding=140
@@ -112,6 +112,9 @@ class Client:
         self.data = self.network.send("get")
 
         # Buttons
+
+        self.play_btn.update(self.event_handler)
+        self.options_btn.update(self.event_handler)
 
     def render(self):
         self.win.fill(Color.white)

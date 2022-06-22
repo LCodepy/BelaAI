@@ -16,3 +16,5 @@ class Assets(metaclass=Singleton):
         self.font32 = pygame.font.SysFont("consolas", 32)
         self.font48 = pygame.font.SysFont("consolas", 48)
         self.font64 = pygame.font.SysFont("consolas", 64)
+
+

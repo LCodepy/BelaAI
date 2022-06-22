@@ -49,6 +49,8 @@ class Button:
 
         self.label.render()
 
+        pygame.draw.rect(self.img, (255, 0, 0), self.rect, 1)
+
     def render_non_image(self) -> None:
         pygame.draw.rect(self.display, Color.red, self.rect)
 

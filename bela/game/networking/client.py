@@ -113,8 +113,6 @@ class Client:
 
         # Buttons
 
-
-
     def render(self):
         self.win.fill(Color.white)
         self.canvas.fill((0, 0, 20))

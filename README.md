@@ -1,2 +1,2 @@
-# Bella AI
-Bella neural network algorithm.
+# Bela AI
+Bela neural network algorithm.

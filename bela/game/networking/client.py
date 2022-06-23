@@ -140,6 +140,9 @@ class Client:
         self.play_btn.render()
         self.options_btn.render()
 
+    def render_lobby(self) -> None:
+        pass
+
     def get_assets(self) -> Assets:
         return self.assets
 

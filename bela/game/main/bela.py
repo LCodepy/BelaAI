@@ -1,7 +1,10 @@
-import pygame
 
 
 class Bela:
+
+    """
+    Class that contains most of the game logic and features.
+    """
 
     def __init__(self, id_: int) -> None:
         self.id = id_

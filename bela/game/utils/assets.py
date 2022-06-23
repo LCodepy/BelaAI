@@ -7,6 +7,10 @@ from bela.game.utils.singleton import Singleton
 
 class Assets(metaclass=Singleton):
 
+    """
+    Class for loading and accessing all assets in the project.
+    """
+
     PATH_IMAGES = "Assets/Images/"
 
     def __init__(self) -> None:

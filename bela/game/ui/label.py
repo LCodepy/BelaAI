@@ -2,13 +2,15 @@ from typing import Tuple
 
 import pygame
 
+from bela.game.utils.colors import *
+
 pygame.font.init()
 
 
 class Label:
 
     def __init__(self, display: pygame.Surface, position: Tuple[int, int], size: Tuple[int, int], font, text: str = "",
-                 font_color: Tuple = (0, 0, 0), bold: bool = False, text_orientation: str = "center", padding: int = 10):
+                 font_color: Color = Colors.black, bold: bool = False, text_orientation: str = "center", padding: int = 10):
         self.display = display
         self.position = position
         self.size = size
@@ -29,7 +31,7 @@ class Label:
         for word in words:
             if (
                 self.font.render(
-                    self.lines[line] + word, self.bold, self.font_color
+                    self.lines[line] + word, self.bold, self.font_color.c
                 ).get_width()
                 > self.size[0]
             ):
@@ -45,7 +47,7 @@ class Label:
 
     def get_text(self, text: str = None):
         return self.font.render(
-            text or self.text, self.bold, self.font_color
+            text or self.text, self.bold, self.font_color.c
         )
 
     """-------------------------------------{Updating}--------------------------------------------"""

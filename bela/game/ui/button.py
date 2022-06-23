@@ -1,18 +1,18 @@
-from typing import Tuple, Callable
+from typing import Tuple, Callable, Any
 
 import pygame
 
 from bela.game.events.events import EventHandler
 from bela.game.ui.label import Label
 from bela.game.utils.assets import Assets
-from bela.game.utils.colors import Color
+from bela.game.utils.colors import *
 
 
 class Button:
 
     def __init__(self, display, center, size, font, center_x: bool = True, center_y: bool = True, text: str = None,
-                 img: pygame.Surface = None, color: Color = Color.red,
-                 font_color: Tuple = (0, 0, 0), bold: bool = False, text_orientation: str = "center",
+                 img: pygame.Surface = None, color: Color = Colors.red,
+                 font_color: Color = Colors.black, bold: bool = False, text_orientation: str = "center",
                  padding: int = 20) -> None:
         self.display = display
         self.x, self.y = center
@@ -47,12 +47,26 @@ class Button:
         self.is_clicked = False
         self.is_held = False
 
+        self.last_hovered = False
+
     def set_text(self, text: str) -> None:
         self.text = text
         self.label.set_text(text)
 
     def update(self, event_handler: EventHandler) -> None:
+        if self.last_hovered and not self.is_hovering:  # e.i. on_exit()
+            self.color = self.color.darker(50)
+        elif not self.last_hovered and self.is_hovering:  # e.i. on_enter()
+            self.color = self.color.brighter(50)
+
+        self.last_hovered = self.is_hovering
+
+        self.is_clicked = False
+        self.is_hovering = False
+        self.is_held = False
+
         pos = event_handler.get_pos()
+
         if self.rect.collidepoint(pos):
             if event_handler.presses["left"]:
                 self.on_click(*pos)
@@ -61,12 +75,12 @@ class Button:
                     self.on_click_listener(*pos)
             elif event_handler.held["left"]:
                 self.on_hold(*pos)
-                self.is_held = False
+                self.is_held = True
                 if callable(self.on_click_listener):
                     self.on_hold_listener(*pos)
             else:
                 self.on_hover(*pos)
-                self.is_hovering = False
+                self.is_hovering = True
                 if callable(self.on_click_listener):
                     self.on_hover_listener(*pos)
 
@@ -79,18 +93,18 @@ class Button:
         self.label.render()
 
     def render_non_image(self) -> None:
-        pygame.draw.rect(self.display, self.color, self.rect)
+        pygame.draw.rect(self.display, self.color.c, self.rect)
 
     def render_image(self) -> None:
         self.display.blit(self.img, (self.rect.x, self.rect.y))
 
-    def on_hover(self, x, y) -> None:
+    def on_hover(self, x: int, y: int) -> None:
         pass
 
-    def on_click(self, x, y) -> None:
+    def on_click(self, x: int, y: int) -> None:
         pass
 
-    def on_hold(self, x, y) -> None:
+    def on_hold(self, x: int, y: int) -> None:
         pass
 
     # Getters and Setters

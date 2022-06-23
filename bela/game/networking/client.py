@@ -10,7 +10,7 @@ from ..ui.label import Label
 from ..utils import config
 from ..events.events import EventHandler
 from ..networking.network import Network
-from ..utils.colors import Color
+from ..utils.colors import *
 
 pygame.init()
 pygame.font.init()
@@ -53,7 +53,7 @@ class Client:
             (300, 200),
             pygame.font.SysFont("comicsans", 210),
             text="BELA",
-            font_color=Color.white,
+            font_color=Colors.white,
             bold=True
         )
 
@@ -64,8 +64,8 @@ class Client:
             self.assets.font32,
             center_x=False,
             text="PLAY",
-            color=Color.black,
-            font_color=Color.white,
+            color=Colors.black,
+            font_color=Colors.white,
             bold=True,
             text_orientation="left",
             padding=40
@@ -78,8 +78,8 @@ class Client:
             self.assets.font32,
             center_x=False,
             text="OPTIONS",
-            color=Color.black,
-            font_color=Color.white,
+            color=Colors.black,
+            font_color=Colors.white,
             bold=True,
             text_orientation="left",
             padding=140
@@ -117,7 +117,7 @@ class Client:
         self.options_btn.update(self.event_handler)
 
     def render(self):
-        self.win.fill(Color.white)
+        self.win.fill(Colors.white.c)
         self.canvas.fill((0, 0, 20))
 
         # Draw here

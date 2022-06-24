@@ -4,6 +4,7 @@ import time
 import random
 from _thread import start_new_thread
 
+from bela.game.networking.commands import Commands
 from ..main.bela import Bela
 from ..utils.log import Log
 
@@ -30,14 +31,16 @@ class Server:
 
             player_id = 0
 
-            self.current_game_id = self.client_id // 2
+            self.current_game_id = self.client_id // 4
             self.client_id += 1
 
-            if self.client_id % 2 == 1:
+            if self.client_id % 4 == 1:
                 self.games[self.current_game_id] = Bela(self.current_game_id)
+                Log.i("SERVER", "Starting new game | id:" + str(self.current_game_id))
             else:
-                player_id = 1
+                player_id = (self.client_id - 1) % 4
 
+            Log.i("SERVER", "New player joined | id:" + str(player_id) + "  | address:" + str(address))
             start_new_thread(self.client, (connection, player_id, self.current_game_id))
 
     def client(self, connection, player_id, game_id):
@@ -55,6 +58,10 @@ class Server:
                 game = self.games[game_id]
                 game.set_nickname(player_id, nickname)
 
+                # Check commands
+                if Commands.equals(data, Commands.READY_UP):
+                    game.ready_up_player(player_id, True)
+
                 self.games[game_id] = game
 
                 connection.sendall(
@@ -65,7 +72,8 @@ class Server:
                     )
                 )
 
-            except socket.error:
+            except (socket.error, EOFError, ):
+                Log.i("SERVER", f"Player {player_id} from game {game_id} disconnected.")
                 break
 
         connection.close()

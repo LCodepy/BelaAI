@@ -10,7 +10,8 @@ pygame.font.init()
 class Label:
 
     def __init__(self, display: pygame.Surface, position: Tuple[int, int], size: Tuple[int, int], font, text: str = "",
-                 font_color: Color = Colors.black, bold: bool = False, text_orientation: str = "center", padding: int = 10):
+                 font_color: Color = Colors.black, bold: bool = False, text_orientation: str = "center",
+                 padding: int = 10):
         self.display = display
         self.position = position
         self.size = size
@@ -26,6 +27,7 @@ class Label:
 
     def update_text(self):
         words = self.text.split()
+        self.lines = [""]
 
         line = 0
         for word in words:

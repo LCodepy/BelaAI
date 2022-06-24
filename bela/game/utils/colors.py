@@ -32,4 +32,6 @@ class Colors:
     blue = Color(0, 0, 255)
     yellow = Color(255, 255, 0)
     brown = Color(100, 60, 20)
-
+    dark_grey = Color(50, 50, 50)
+    grey = Color(100, 100, 100)
+    light_grey = Color(200, 200, 200)

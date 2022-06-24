@@ -1,5 +1,6 @@
-from typing import Tuple, Callable, Any
+from __future__ import annotations
 
+from typing import Callable
 import pygame
 
 from bela.game.events.events import EventHandler
@@ -43,6 +44,10 @@ class Button:
         self.on_click_listener = None
         self.on_hold_listener = None
 
+        self.hover_class = None
+        self.click_class = None
+        self.hold_class = None
+
         self.is_hovering = False
         self.is_clicked = False
         self.is_held = False
@@ -72,17 +77,17 @@ class Button:
                 self.on_click(*pos)
                 self.is_clicked = True
                 if callable(self.on_click_listener):
-                    self.on_click_listener(*pos)
+                    self.on_click_listener(self.click_class, *pos)
             elif event_handler.held["left"]:
                 self.on_hold(*pos)
                 self.is_held = True
-                if callable(self.on_click_listener):
-                    self.on_hold_listener(*pos)
+                if callable(self.on_hold_listener):
+                    self.on_hold_listener(self.hold_class, *pos)
             else:
                 self.on_hover(*pos)
                 self.is_hovering = True
-                if callable(self.on_click_listener):
-                    self.on_hover_listener(*pos)
+                if callable(self.on_hover_listener):
+                    self.on_hover_listener(self.hover_class, *pos)
 
     def render(self) -> None:
         if self.img is None:
@@ -109,12 +114,18 @@ class Button:
 
     # Getters and Setters
 
-    def set_on_hover_listener(self, listener: Callable[[int, int], None]) -> None:
+    def set_on_hover_listener(self, listener: Callable, cls) -> Button:
         self.on_hover_listener = listener
+        self.hover_class = cls
+        return self
 
-    def set_on_click_listener(self, listener: Callable[[int, int], None]) -> None:
+    def set_on_click_listener(self, listener: Callable, cls) -> Button:
         self.on_click_listener = listener
+        self.click_class = cls
+        return self
 
-    def set_on_hold_listener(self, listener: Callable[[int, int], None]) -> None:
+    def set_on_hold_listener(self, listener: Callable, cls) -> Button:
         self.on_hold_listener = listener
+        self.hold_class = cls
+        return self
 

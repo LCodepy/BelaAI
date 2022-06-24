@@ -4,8 +4,10 @@ from typing import Any
 
 import pygame
 
+from bela.game.networking.commands import Commands
 from bela.game.ui.button import Button
 from bela.game.utils.assets import Assets
+from bela.game.utils.timer import TimerHandler
 from ..ui.label import Label
 from ..utils import config
 from ..events.events import EventHandler
@@ -45,6 +47,37 @@ class Client:
 
         self.assets = Assets()
 
+        # Variables
+
+        self.clock = pygame.time.Clock()
+        self.__fps = 60
+
+        self.pressed_point = None
+        self.winner = None
+        self.data: dict[str, Any] = {"game": None}
+
+        self.label_dots = 0
+
+        # Event functions
+
+        def on_play_btn_click(cls, x, y):
+            cls.data = cls.network.send(Commands.READY_UP)
+            cls.timer_handler.add_timer("dots1", 0.8, update_label_text1, cls)
+
+        def on_options_btn_click(cls, x, y):
+            pass
+
+        def update_label_text1(cls):
+            cls.label_dots += 1
+            if cls.label_dots > 3:
+                cls.label_dots = 1
+            cls.waiting_lobby_label.set_text("Pričekajte" + "." * cls.label_dots)
+            cls.timer_handler.add_timer_during_exec("dots2", 0.8, update_label_text1, cls)
+
+        # Timers
+
+        self.timer_handler = TimerHandler()
+
         # GUI Elements
 
         self.title = Label(
@@ -63,13 +96,13 @@ class Client:
             (650, 70),
             self.assets.font32,
             center_x=False,
-            text="PLAY",
+            text="IGRAJ",
             color=Colors.black,
             font_color=Colors.white,
             bold=True,
             text_orientation="left",
             padding=40
-        )
+        ).set_on_click_listener(on_play_btn_click, self)
 
         self.options_btn = Button(
             self.display,
@@ -77,22 +110,33 @@ class Client:
             (650, 70),
             self.assets.font32,
             center_x=False,
-            text="OPTIONS",
+            text="OPCIJE",
             color=Colors.black,
             font_color=Colors.white,
             bold=True,
             text_orientation="left",
             padding=140
+        ).set_on_click_listener(on_options_btn_click, self)
+
+        self.waiting_lobby_label = Label(
+            self.display,
+            (self.display.get_width() // 2, self.display.get_height() // 2),
+            (400, 200),
+            pygame.font.SysFont("comicsans", 100),
+            text="Pričekajte",
+            font_color=Colors.white,
+            bold=True,
         )
 
-        # Variables
-
-        self.clock = pygame.time.Clock()
-        self.__fps = 60
-
-        self.pressed_point = None
-        self.winner = None
-        self.data: dict[str, Any] = {"game": None}
+        self.player_count_label = Label(
+            self.display,
+            (self.display.get_width() // 2, self.display.get_height() // 2 + 80),
+            (700, 200),
+            self.assets.font48,
+            text="Spremni igrači: 0/4",
+            font_color=Colors.light_grey,
+            bold=True,
+        )
 
         """-----------------------------------MAIN LOOP---------------------------------"""
         while True:
@@ -109,12 +153,26 @@ class Client:
         return self.__player == self.game.player_turn
 
     def update(self):
-        self.data = self.network.send("get")
+        self.data = self.network.send(Commands.GET)
 
-        # Buttons
+        self.timer_handler.update()
 
+        if self.game.is_ready():
+            self.update_game()
+        elif self.game.is_player_ready(self.__player):
+            self.update_lobby()
+        else:
+            self.update_menu()
+
+    def update_game(self) -> None:
+        pass
+
+    def update_menu(self) -> None:
         self.play_btn.update(self.event_handler)
         self.options_btn.update(self.event_handler)
+
+    def update_lobby(self) -> None:
+        self.player_count_label.set_text("Spremni igrači: " + str(self.game.get_ready_player_count()) + "/4")
 
     def render(self):
         self.win.fill(Colors.white.c)
@@ -124,6 +182,8 @@ class Client:
 
         if self.game.is_ready():
             self.render_game()
+        elif self.game.is_player_ready(self.__player):
+            self.render_lobby()
         else:
             self.render_menu()
 
@@ -141,7 +201,10 @@ class Client:
         self.options_btn.render()
 
     def render_lobby(self) -> None:
-        pass
+        self.canvas.fill(Color(9, 21, 49).c)
+
+        self.waiting_lobby_label.render()
+        self.player_count_label.render()
 
     def get_assets(self) -> Assets:
         return self.assets

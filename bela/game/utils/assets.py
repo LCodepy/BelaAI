@@ -21,10 +21,10 @@ class Assets(metaclass=Singleton):
         self.font64 = pygame.font.SysFont("consolas", 64)
 
         self.card_names = [
-            list(map(lambda x: x + " herc", ["as", "7", "8", "9", "cener", "unter", "baba", "kraj"])),
-            list(map(lambda x: x + " pik", ["as", "7", "8", "9", "cener", "unter", "baba", "kraj"])),
-            list(map(lambda x: x + " karo", ["as", "7", "8", "9", "cener", "unter", "baba", "kraj"])),
-            list(map(lambda x: x + " tref", ["as", "7", "8", "9", "cener", "unter", "baba", "kraj"]))
+            list(map(lambda x: (x, "herc"), ["as", "7", "8", "9", "cener", "unter", "baba", "kraj"])),
+            list(map(lambda x: (x, "pik"), ["as", "7", "8", "9", "cener", "unter", "baba", "kraj"])),
+            list(map(lambda x: (x, "karo"), ["as", "7", "8", "9", "cener", "unter", "baba", "kraj"])),
+            list(map(lambda x: (x, "tref"), ["as", "7", "8", "9", "cener", "unter", "baba", "kraj"]))
         ]
         self.cards = self.edit_sprite_sheet(self.load_sprite_sheet("karte.png", 4, 8), self.card_names)
 
@@ -40,7 +40,7 @@ class Assets(metaclass=Singleton):
 
         return sheet
 
-    def edit_sprite_sheet(self, sheet: list[list[pygame.Surface]], names: list[list[str]]) -> dict[str, pygame.Surface]:
+    def edit_sprite_sheet(self, sheet: list[list[pygame.Surface]], names: list[list]) -> dict[str, pygame.Surface]:
         d = {}
         for i in range(len(sheet)):
             for j in range(len(sheet[0])):

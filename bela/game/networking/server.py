@@ -1,7 +1,5 @@
 import pickle
 import socket
-import time
-import random
 from _thread import start_new_thread
 
 from bela.game.networking.commands import Commands
@@ -23,6 +21,8 @@ class Server:
         self.games = {}
         self.client_id = 0
         self.current_game_id = 0
+
+        Log.i("SERVER", "Started...")
 
         while True:
 

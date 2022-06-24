@@ -21,12 +21,12 @@ class Assets(metaclass=Singleton):
         self.font64 = pygame.font.SysFont("consolas", 64)
 
         self.card_names = [
-            list(map(lambda x: (x, "herc"), ["as", "7", "8", "9", "cener", "unter", "baba", "kraj"])),
-            list(map(lambda x: (x, "pik"), ["as", "7", "8", "9", "cener", "unter", "baba", "kraj"])),
-            list(map(lambda x: (x, "karo"), ["as", "7", "8", "9", "cener", "unter", "baba", "kraj"])),
-            list(map(lambda x: (x, "tref"), ["as", "7", "8", "9", "cener", "unter", "baba", "kraj"]))
+            list(map(lambda x: (x, "herc"), ["kec", "7", "8", "9", "cener", "unter", "baba", "kralj"])),
+            list(map(lambda x: (x, "pik"), ["kec", "7", "8", "9", "cener", "unter", "baba", "kralj"])),
+            list(map(lambda x: (x, "karo"), ["kec", "7", "8", "9", "cener", "unter", "baba", "kralj"])),
+            list(map(lambda x: (x, "tref"), ["kec", "7", "8", "9", "cener", "unter", "baba", "kralj"]))
         ]
-        self.cards = self.edit_sprite_sheet(self.load_sprite_sheet("karte.png", 4, 8), self.card_names)
+        self.card_images = self.edit_sprite_sheet(self.load_sprite_sheet("karte.png", 4, 8), self.card_names)
 
     def load_sprite_sheet(self, filename: str, rows: int, cols: int) -> list[list[pygame.Surface]]:
         sheet = []

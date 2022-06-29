@@ -1,4 +1,5 @@
 from os.path import join
+from typing import Tuple
 
 import pygame
 
@@ -26,12 +27,18 @@ class Assets(metaclass=Singleton):
             list(map(lambda x: (x, "karo"), ["kec", "7", "8", "9", "cener", "unter", "baba", "kralj"])),
             list(map(lambda x: (x, "tref"), ["kec", "7", "8", "9", "cener", "unter", "baba", "kralj"]))
         ]
-        self.card_images = self.edit_sprite_sheet(self.load_sprite_sheet("karte.png", 4, 8), self.card_names)
+        self.card_images = self.edit_sprite_sheet(self.load_sprite_sheet("karte.png", 4, 8, 0.5), self.card_names)
+        self.card_back = pygame.image.load(self.PATH_IMAGES + "karta_odiza.png").convert_alpha()
+        self.card_back = pygame.transform.scale(self.card_back, (self.card_back.get_width() // 2, self.card_back.get_height() // 2))
+        self.card_width, self.card_height = self.card_images[("kec", "herc")].get_size()
 
-    def load_sprite_sheet(self, filename: str, rows: int, cols: int) -> list[list[pygame.Surface]]:
+        self.table = pygame.image.load(self.PATH_IMAGES + "stol.png")
+
+    def load_sprite_sheet(self, filename: str, rows: int, cols: int, size: float = 1) -> list[list[pygame.Surface]]:
         sheet = []
 
         img = pygame.image.load(self.PATH_IMAGES + filename).convert_alpha()
+        img = pygame.transform.scale(img, (int(img.get_width() * size), int(img.get_height() * size)))
 
         for x, i in enumerate(range(0, img.get_height(), img.get_height() // rows)):
             sheet.append([])
@@ -40,7 +47,7 @@ class Assets(metaclass=Singleton):
 
         return sheet
 
-    def edit_sprite_sheet(self, sheet: list[list[pygame.Surface]], names: list[list]) -> dict[str, pygame.Surface]:
+    def edit_sprite_sheet(self, sheet: list[list[pygame.Surface]], names: list[list]) -> dict[Tuple[str, str], pygame.Surface]:
         d = {}
         for i in range(len(sheet)):
             for j in range(len(sheet[0])):

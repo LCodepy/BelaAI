@@ -32,14 +32,14 @@ class Label:
         line = 0
         for word in words:
             if (
-                self.font.render(
-                    self.lines[line] + word, self.bold, self.font_color.c
-                ).get_width()
-                > self.size[0]
+                self.font.render(self.lines[line] + word, self.bold, self.font_color.c).get_width() > self.size[0]
+                and self.lines[line]
             ):
                 self.lines.append("")
                 line += 1
+                self.lines[line-1] = self.lines[line-1][:-1]
             self.lines[line] += word + " "
+        self.lines[line - 1] = self.lines[line - 1][:-1]
 
         self.lines = list(filter(lambda l: l, self.lines))
 
@@ -51,8 +51,6 @@ class Label:
         return self.font.render(
             text or self.text, self.bold, self.font_color.c
         )
-
-    """-------------------------------------{Updating}--------------------------------------------"""
 
     def render(self):
         for i, text in enumerate(self.lines):
@@ -67,3 +65,8 @@ class Label:
 
             self.display.blit(t, (x, self.position[1] - (len(self.lines) * (t.get_rect().h + 2) - 2) // 2
                                   + (t.get_rect().h + 2) * i))
+
+    @staticmethod
+    def render_text(surface, text, pos, font, color, bold: bool = False, centered: bool = True):
+        rendered = font.render(text, bold, color)
+        surface.blit(rendered, (pos[0] - rendered.get_rect().w // 2 * centered, pos[1] - rendered.get_rect().h // 2 * centered))

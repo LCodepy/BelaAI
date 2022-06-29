@@ -3,7 +3,7 @@ import socket
 from _thread import start_new_thread
 
 from bela.game.networking.commands import Commands
-from ..main.bela import Bela
+from ..main.bela import Bela, GameState
 from ..utils.log import Log
 
 
@@ -22,7 +22,7 @@ class Server:
         self.client_id = 0
         self.current_game_id = 0
 
-        Log.i("SERVER", "Started...")
+        Log.i("SERVER", f"Started on port {22222}")
 
         while True:
 
@@ -59,8 +59,37 @@ class Server:
                 game.set_nickname(player_id, nickname)
 
                 # Check commands
+
                 if Commands.equals(data, Commands.READY_UP):
                     game.ready_up_player(player_id, True)
+
+                if Commands.equals(data, Commands.PLAY_CARD):
+                    if game.get_current_game_state() != GameState.IGRA:
+                        passed = False
+                    else:
+                        passed = game.inspect_played_card(data.data[0].card)
+                    if game.player_turn != player_id:
+                        passed = False
+                    connection.sendall(pickle.dumps(passed))
+                    if passed:
+                        game.cards_on_table[player_id] = data.data[0]
+                        game.cards[player_id].remove(data.data[0].card)
+                        game.next_turn()
+
+                if Commands.equals(data, Commands.SWAP_CARDS):
+                    game.swap_cards_for_player(player_id, data.data[0])
+
+                if Commands.equals(data, Commands.SORT_CARDS):
+                    game.sort_player_cards(player_id)
+
+                if Commands.equals(data, Commands.CALL_ADUT):
+                    game.set_adut(data.data[0])
+                    game.next_game_state()
+
+                if Commands.equals(data, Commands.DALJE):
+                    game.count_dalje += 1
+                    game.dalje[player_id] = True
+                    game.next_turn()
 
                 self.games[game_id] = game
 

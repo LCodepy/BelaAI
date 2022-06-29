@@ -48,6 +48,10 @@ class Button:
         self.click_class = None
         self.hold_class = None
 
+        self.hover_pass_self = False
+        self.click_pass_self = False
+        self.hold_pass_self = False
+
         self.is_hovering = False
         self.is_clicked = False
         self.is_held = False
@@ -77,17 +81,26 @@ class Button:
                 self.on_click(*pos)
                 self.is_clicked = True
                 if callable(self.on_click_listener):
-                    self.on_click_listener(self.click_class, *pos)
+                    if self.click_pass_self:
+                        self.on_click_listener(self.click_class, *pos, self)
+                    else:
+                        self.on_click_listener(self.click_class, *pos)
             elif event_handler.held["left"]:
                 self.on_hold(*pos)
                 self.is_held = True
                 if callable(self.on_hold_listener):
-                    self.on_hold_listener(self.hold_class, *pos)
+                    if self.hold_pass_self:
+                        self.on_hold_listener(self.hold_class, *pos, self)
+                    else:
+                        self.on_hold_listener(self.hold_class, *pos)
             else:
                 self.on_hover(*pos)
                 self.is_hovering = True
                 if callable(self.on_hover_listener):
-                    self.on_hover_listener(self.hover_class, *pos)
+                    if self.hover_pass_self:
+                        self.on_hover_listener(self.hover_class, *pos, self)
+                    else:
+                        self.on_hover_listener(self.hover_class, *pos)
 
     def render(self) -> None:
         if self.img is None:
@@ -114,18 +127,24 @@ class Button:
 
     # Getters and Setters
 
-    def set_on_hover_listener(self, listener: Callable, cls) -> Button:
+    def set_on_hover_listener(self, listener: Callable, cls, pass_self: bool = False) -> Button:
         self.on_hover_listener = listener
         self.hover_class = cls
+        self.hover_pass_self = pass_self
         return self
 
-    def set_on_click_listener(self, listener: Callable, cls) -> Button:
+    def set_on_click_listener(self, listener: Callable, cls, pass_self: bool = False) -> Button:
         self.on_click_listener = listener
         self.click_class = cls
+        self.click_pass_self = pass_self
         return self
 
-    def set_on_hold_listener(self, listener: Callable, cls) -> Button:
+    def set_on_hold_listener(self, listener: Callable, cls, pass_self: bool = False) -> Button:
         self.on_hold_listener = listener
         self.hold_class = cls
+        self.hold_pass_self = pass_self
         return self
+
+    def get_text(self) -> str:
+        return self.label.text
 

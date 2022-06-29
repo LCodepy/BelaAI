@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any
 
+from bela.game.main.bela import Card
+
 
 @dataclass
 class Command:
@@ -13,6 +15,15 @@ class Commands:
 
     GET = Command("GET", None)
     READY_UP = Command("READY_UP", None)
+    SORT_CARDS = Command("SORT_CARDS", None)
+    PLAY_CARD = Command("PLAY_CARD", (Card, ))
+    SWAP_CARDS = Command("SWAP_CARDS", (int, int))
+    CALL_ADUT = Command("CALL_ADUT", (str, ))
+    DALJE = Command("DALJE", None)
+
+    @staticmethod
+    def new(c: Command, *args) -> Command:
+        return Command(c.name, args)
 
     @staticmethod
     def equals(c1: Command, c2: Command) -> bool:

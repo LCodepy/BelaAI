@@ -29,6 +29,7 @@ class Colors:
     white = Color(255, 255, 255)
     black = Color(0, 0, 0)
     red = Color(255, 0, 0)
+    dark_red = Color(205, 0, 0)
     green = Color(0, 255, 0)
     blue = Color(0, 0, 255)
     yellow = Color(255, 255, 0)

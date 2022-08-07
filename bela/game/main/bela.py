@@ -4,7 +4,7 @@ from enum import Enum, auto
 from typing import Tuple, Optional
 
 import pygame
-
+#lol
 
 class GameState(Enum):
 
@@ -84,11 +84,17 @@ class Bela:
 
         self.current_state = GameState.ZVANJE_ADUTA
 
-        self.cards_on_table = [None, None, None, None]
+        self.cards_on_table = []
+        self.player_cards_on_table = [None, None, None, None]
 
         self.adut = None
         self.count_dalje = 0
         self.dalje = [False, False, False, False]
+
+        self.zvanja = [[], [], [], []]
+        self.zvanje_over = [False, False, False, False]
+
+        self.points = [0, 0]
 
     def create_cards(self) -> None:
         types = ["herc", "pik", "karo", "tref"]
@@ -109,8 +115,102 @@ class Bela:
         for i in range(4):
             self.cards[i].sve = self.cards[i].talon + self.cards[i].netalon
 
-    def inspect_played_card(self, card: Tuple[str, str]) -> bool:
-        return True  # TODO: Make the function check the rules
+    def inspect_played_card(self, card: Tuple[str, str], id_: int) -> bool:
+        if not any(self.cards_on_table):
+            return True
+
+        last_card = self.cards_on_table[-1].card
+        first_card = self.cards_on_table[0].card
+
+        if card[1] != first_card[1]:
+            if self.player_has_color(first_card[1], id_):
+                return False
+            if card[1] != self.adut and self.player_has_adut(id_):
+                return False
+            if card[1] == self.adut and last_card == self.adut:
+                return not self.player_has_higher(last_card, id_)
+            return True
+        else:
+            if self.is_card_greater(last_card, card) and last_card[1] == card[1]:
+                return not self.player_has_higher(last_card, id_)
+        return True
+
+    def remove_cards_from_table(self) -> [int, int]:
+        cards_on_table = list(map(lambda x: x.card, self.cards_on_table))
+        stih_value = sum(list(map(self.get_real_card_value, cards_on_table)))
+        first_card = cards_on_table[0]
+        cards = [0, 0, 0, 0]
+
+        for i, card in enumerate(cards_on_table):
+            if card[1] not in [self.adut, first_card]:
+                continue
+            for j, c in enumerate(cards_on_table):
+                if i == j:
+                    continue
+                if c[1] not in [self.adut, first_card]:
+                    cards[i] += 1
+                elif card[1] == c[1]:
+                    if self.is_card_greater(card, c):
+                        cards[i] += 1
+                elif card[1] in [self.adut, first_card[1]]:
+                    cards[i] += 1
+
+        ret = self.player_cards_on_table.index(self.cards_on_table[cards.index(max(cards))]), stih_value
+        self.cards_on_table.clear()
+        self.player_cards_on_table = [None for _ in range(4)]
+        return ret
+
+    def player_has_adut(self, id_: int) -> bool:
+        return any(card[1] == self.adut for card in self.cards[id_].sve)
+
+    def player_has_higher(self, card: Tuple[str, str], id_: int) -> bool:
+        return any(self.is_card_greater(c, card) for c in filter(lambda x: x[1] == card[1], self.cards[id_].sve))
+
+    def player_has_color(self, color: str, id_: int) -> bool:
+        return any(card[1] == color for card in self.cards[id_].sve)
+
+    def is_card_greater(self, c1: Tuple[str, str], c2: Tuple[str, str]) -> bool:
+        return self.get_card_value(c1) > self.get_card_value(c2)
+
+    def get_card_value(self, card: Tuple[str, str]) -> int:
+        if card[0] == "9":
+            if card[1] == self.adut:
+                return 19
+            return 9
+        elif card[0] == "unter":
+            if card[1] == self.adut:
+                return 18
+            return 12
+        if card[0] in "78":
+            return int(card[0])
+        elif card[0] == "baba":
+            return 13
+        elif card[0] == "kralj":
+            return 14
+        elif card[0] == "cener":
+            return 15
+        elif card[0] == "kec":
+            return 16
+
+    def get_real_card_value(self, card: Tuple[str, str]) -> int:
+        if card[0] == "9":
+            if card[1] == self.adut:
+                return 14
+            return 0
+        elif card[0] == "unter":
+            if card[1] == self.adut:
+                return 20
+            return 2
+        if card[0] in "78":
+            return 0
+        elif card[0] == "baba":
+            return 3
+        elif card[0] == "kralj":
+            return 4
+        elif card[0] == "cener":
+            return 10
+        elif card[0] == "kec":
+            return 11
 
     def swap_cards_for_player(self, id_: int, cards: Tuple) -> None:
         c1, c2 = cards
@@ -139,10 +239,49 @@ class Bela:
 
         self.cards[id_].sve = list_sorted
 
+    def add_zvanja(self, cards: list, id_: int) -> None:
+        values = ["7", "8", "9", "cener", "unter", "baba", "kralj", "kec"]
+        l = [[]]
+        z = 0
+        index = 0
+        types = []
+        number_of_types = []
+
+        for card in cards:
+            if card[0] not in types:
+                types.append(card[0])
+                number_of_types.append(0)
+            else:
+                number_of_types[types.index(card[0])] = number_of_types[types.index(card[0])] + 1
+                if number_of_types[types.index(card[0])] == 3:
+                    l[index].append((card[0], "tref"))
+                    l[index].append((card[0], "karo"))
+                    l[index].append((card[0], "herc"))
+                    l[index].append((card[0], "pik"))
+                    index += 1
+                    l.append([])
+
+        for y in range(len(cards[:-1])):
+            if values.index(cards[y][0]) + 1 == values.index(cards[y + 1][0]) and cards[y][1] == cards[y + 1][1]:
+                if z == 0:
+                    l[index].append((cards[y][0], cards[y][1]))
+                l[index].append(cards[y + 1])
+                z += 1
+            else:
+                z = 0
+                index += 1
+                l.append([])
+
+        zvanje = [i for i in l if len(i) > 2]
+        self.zvanja[id_] = zvanje
+
     def next_turn(self) -> None:
         self.player_turn += 1
         if self.player_turn > 3:
             self.player_turn = 0
+
+    def set_turn(self, id_: int) -> None:
+        self.player_turn = id_
 
     def next_game_state(self) -> None:
         if self.current_state is GameState.ZVANJE_ADUTA:
@@ -151,6 +290,17 @@ class Bela:
             self.current_state = GameState.IGRA
         elif self.current_state is GameState.IGRA:
             self.current_state = GameState.BROJANJE
+
+    def add_card_to_table(self, card: Tuple[str, str], id_: int) -> None:
+        self.cards_on_table.append(card)
+        self.player_cards_on_table[id_] = card
+
+        if len(self.cards_on_table) == 4:
+            turn, stih = self.remove_cards_from_table()
+            self.set_turn(turn)
+            self.points[turn % 2] += stih
+        else:
+            self.next_turn()
 
     def set_adut(self, adut: str) -> None:
         self.adut = adut

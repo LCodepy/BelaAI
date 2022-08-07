@@ -67,14 +67,13 @@ class Server:
                     if game.get_current_game_state() != GameState.IGRA:
                         passed = False
                     else:
-                        passed = game.inspect_played_card(data.data[0].card)
+                        passed = game.inspect_played_card(data.data[0].card, player_id)
                     if game.player_turn != player_id:
                         passed = False
                     connection.sendall(pickle.dumps(passed))
                     if passed:
-                        game.cards_on_table[player_id] = data.data[0]
+                        game.add_card_to_table(data.data[0], player_id)
                         game.cards[player_id].remove(data.data[0].card)
-                        game.next_turn()
 
                 if Commands.equals(data, Commands.SWAP_CARDS):
                     game.swap_cards_for_player(player_id, data.data[0])
@@ -91,6 +90,17 @@ class Server:
                     game.dalje[player_id] = True
                     game.next_turn()
 
+                if Commands.equals(data, Commands.ZVANJE):
+                    game.add_zvanja(data.data[0], player_id)
+                    game.zvanje_over[player_id] = True
+                    if all(game.zvanje_over):
+                        game.next_game_state()
+
+                if Commands.equals(data, Commands.ZVANJE_GOTOVO):
+                    game.zvanje_over[player_id] = True
+                    if all(game.zvanje_over):
+                        game.next_game_state()
+
                 self.games[game_id] = game
 
                 connection.sendall(
@@ -103,6 +113,8 @@ class Server:
 
             except (socket.error, EOFError, ):
                 Log.i("SERVER", f"Player {player_id} from game {game_id} disconnected.")
+                if game_id in self.games:
+                    self.games.pop(game_id)
                 break
 
         connection.close()

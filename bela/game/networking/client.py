@@ -68,6 +68,9 @@ class Client:
         self.inventory = []
         self.inventory_calculated = False
         self.moving_card = None
+        self.selected_cards = [False for _ in range(8)]
+        self.zvanja_dalje = False
+        self.called_zvanje = False
         self.card_area = pygame.Rect(350, 240, 100, 80)
 
         # Event functions
@@ -102,6 +105,20 @@ class Client:
             if cls.game.get_current_game_state() == GameState.ZVANJE_ADUTA:
                 cls.data = cls.network.send(Commands.DALJE)
                 cls.calculate_card_positions(cls.get_cards().sve)
+
+        def on_nema_zvanja_btn_click(cls, x, y):
+            cls.zvanja_dalje = True
+            cls.data = cls.network.send(Commands.ZVANJE_GOTOVO)
+
+        def on_ima_zvanja_btn_click(cls, x, y):
+            cards = []
+            for i, v in enumerate(cls.selected_cards):
+                if v:
+                    cards.append(cls.inventory[i].card)
+            cls.data = cls.network.send(Commands.new(Commands.ZVANJE, cards))
+            if cls.game.zvanja[cls.__player]:
+                cls.called_zvanje = True
+                cls.recheck_zvanja()
 
         # Timers
 
@@ -197,6 +214,33 @@ class Client:
             font_color=Colors.white
         ).set_on_click_listener(on_dalje_btn_click, self)
 
+        self.nema_zvanja_button = Button(
+            self.display,
+            (self.display.get_width() // 2 - 100, self.display.get_height() // 2),
+            (140, 30),
+            self.assets.font18,
+            text="NEMAM ZVANJA",
+            font_color=Colors.white
+        ).set_on_click_listener(on_nema_zvanja_btn_click, self)
+
+        self.ima_zvanja_button = Button(
+            self.display,
+            (self.display.get_width() // 2 + 100, self.display.get_height() // 2),
+            (140, 30),
+            self.assets.font18,
+            text="ZOVEM",
+            font_color=Colors.white
+        ).set_on_click_listener(on_ima_zvanja_btn_click, self)
+
+        self.zvanja_label = Label(
+            self.display,
+            (self.display.get_width() // 2, self.display.get_height() // 2 - 60),
+            (400, 100),
+            self.assets.font32,
+            text="OZNAČITE ZVANJA",
+            font_color=Colors.white
+        )
+
         """-----------------------------------MAIN LOOP---------------------------------"""
         while True:
 
@@ -239,15 +283,26 @@ class Client:
             ):
                 self.update_calling_adut()
 
-        if self.game.get_current_game_state() is GameState.ZVANJA:
-            if len(self.inventory) == 6 or not self.inventory:
-                self.calculate_card_positions(self.get_cards().sve, 100)
+        if self.game.get_current_game_state() is GameState.ZVANJA and len(self.inventory) in (0, 6):
+            self.calculate_card_positions(self.get_cards().sve, 100)
+
+        if self.game.get_current_game_state() is GameState.ZVANJA and not self.zvanja_dalje and not self.called_zvanje:
+            self.update_zvanja()
 
     def update_calling_adut(self) -> None:
         for button in self.call_adut_buttons:
             button.update(self.event_handler)
         if self.game.count_dalje < 3:
             self.dalje_button.update(self.event_handler)
+
+    def update_zvanja(self) -> None:
+        self.ima_zvanja_button.update(self.event_handler)
+        self.nema_zvanja_button.update(self.event_handler)
+
+        for i, card in enumerate(reversed(self.inventory)):
+            if self.event_handler.presses["right"] and card.rect.collidepoint(self.event_handler.get_pos()):
+                self.selected_cards[len(self.inventory) - i - 1] = not self.selected_cards[len(self.inventory) - i - 1]
+                break
 
     def update_menu(self) -> None:
         self.play_btn.update(self.event_handler)
@@ -257,7 +312,8 @@ class Client:
         self.player_count_label.set_text("Spremni igrači: " + str(self.game.get_ready_player_count()) + "/4")
 
     def update_cards(self) -> None:
-        for i, card in enumerate(self.inventory):
+        for i, card in enumerate(reversed(self.inventory)):
+            i = len(self.inventory) - i - 1
             if (
                     self.event_handler.held["left"] and
                     card.rect.collidepoint(self.event_handler.get_pos()) and
@@ -287,6 +343,7 @@ class Client:
                         c2 = self.game.get_card_index(self.__player, self.inventory[i].card)
                         self.data = self.network.send(Commands.new(Commands.SWAP_CARDS, (c1, c2)))
                         self.inventory[self.moving_card].card, self.inventory[i].card = self.inventory[i].card, self.inventory[self.moving_card].card
+                        self.selected_cards[self.moving_card], self.selected_cards[i] = self.selected_cards[i], self.selected_cards[self.moving_card]
                         break
                 else:
                     self.inventory[self.moving_card].move_back()
@@ -327,7 +384,12 @@ class Client:
             (10, 40), self.assets.font18, (200, 200, 200), centered=False
         )
         Label.render_text(
-            self.info_canvas, "ADUT: " + str(self.game.adut), (10, 60), self.assets.font18, (200, 200, 200), centered=False
+            self.info_canvas, "ADUT: " + str(self.game.adut), (10, 60), self.assets.font18, (200, 200, 200),
+            centered=False
+        )
+        Label.render_text(
+            self.info_canvas, "GAMESTATE: " + str(self.game.get_current_game_state()).split(".")[1], (10, 80),
+            self.assets.font18, (200, 200, 200), centered=False
         )
 
     def render_game(self) -> None:
@@ -347,6 +409,9 @@ class Client:
         ):
             self.render_calling_adut()
 
+        if self.game.get_current_game_state() is GameState.ZVANJA and not self.zvanja_dalje and not self.called_zvanje:
+            self.render_zvanja()
+
     def render_calling_adut(self) -> None:
         surf = pygame.Surface(self.display.get_size(), pygame.SRCALPHA)
         surf.fill((0, 0, 0))
@@ -358,6 +423,16 @@ class Client:
 
         if self.game.count_dalje < 3:
             self.dalje_button.render()
+
+    def render_zvanja(self) -> None:
+        surf = pygame.Surface((self.display.get_width(), 140), pygame.SRCALPHA)
+        surf.fill((0, 0, 0))
+        surf.set_alpha(175)
+        self.display.blit(surf, (0, self.display.get_height() // 2 - surf.get_height() // 2 - 30))
+
+        self.zvanja_label.render()
+        self.ima_zvanja_button.render()
+        self.nema_zvanja_button.render()
 
     def render_menu(self) -> None:
         self.title.render()
@@ -389,7 +464,11 @@ class Client:
     def render_hand(self) -> None:
         if self.game.get_current_game_state() is GameState.ZVANJE_ADUTA and not self.game.dalje[self.__player]:
             self.render_cards(self.game.get_netalon(self.__player))
-        elif self.game.get_current_game_state() is GameState.ZVANJA or self.game.dalje[self.__player]:
+        elif (
+                self.game.get_current_game_state() is GameState.ZVANJA or
+                self.game.dalje[self.__player] or
+                self.game.get_current_game_state() is GameState.IGRA
+        ):
             self.render_cards(self.get_cards().sve)
 
     def render_cards(self, cards: list) -> None:
@@ -401,12 +480,22 @@ class Client:
         self.render_player_cards()
 
         for i, card in enumerate(cards):
-            if i == self.moving_card:
+            if i == self.moving_card or self.selected_cards[i]:
                 continue
             x = self.inventory[i].x
             y = self.inventory[i].y
             alfa = self.inventory[i].angle
             card = pygame.transform.rotate(self.assets.card_images[card], -82 - alfa)
+            self.canvas.blit(card, (x - card.get_width() // 2, y - card.get_height() // 2))
+
+        for i, card in enumerate(cards):
+            if i == self.moving_card or not self.selected_cards[i]:
+                continue
+            x = self.inventory[i].x
+            y = self.inventory[i].y
+            alfa = self.inventory[i].angle
+            card = pygame.transform.rotate(self.assets.card_images[card], -82 - alfa)
+            card = pygame.transform.scale(card, (int(card.get_width() * 1.2), int(card.get_height() * 1.2)))
             self.canvas.blit(card, (x - card.get_width() // 2, y - card.get_height() // 2))
 
         if self.moving_card is not None:
@@ -472,6 +561,12 @@ class Client:
                 ))
             )
         self.inventory_calculated = True
+
+    def recheck_zvanja(self) -> None:
+        for i, v in enumerate(self.selected_cards):
+            for zvanje in self.game.zvanja[self.__player]:
+                if v and self.inventory[i].card not in zvanje:
+                    self.selected_cards[i] = False
 
     def get_cards(self) -> Hand:
         return self.game.cards[self.__player]

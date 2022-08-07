@@ -20,6 +20,8 @@ class Commands:
     SWAP_CARDS = Command("SWAP_CARDS", (int, int))
     CALL_ADUT = Command("CALL_ADUT", (str, ))
     DALJE = Command("DALJE", None)
+    ZVANJE = Command("ZVANJE", (list, ))
+    ZVANJE_GOTOVO = Command("ZVANJE_GOTOVO", None)
 
     @staticmethod
     def new(c: Command, *args) -> Command:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Callable
 import pygame
 
@@ -12,7 +13,7 @@ from bela.game.utils.colors import *
 class Button:
 
     def __init__(self, display, center, size, font, center_x: bool = True, center_y: bool = True, text: str = None,
-                 img: pygame.Surface = None, color: Color = Colors.red,
+                 img: pygame.Surface = None, color: Color = Colors.dark_red,
                  font_color: Color = Colors.black, bold: bool = False, text_orientation: str = "center",
                  padding: int = 20) -> None:
         self.display = display
@@ -58,11 +59,21 @@ class Button:
 
         self.last_hovered = False
 
+        self.disable_time = 0.1
+        self.init = False
+        self.init_time = 0
+
     def set_text(self, text: str) -> None:
         self.text = text
         self.label.set_text(text)
 
     def update(self, event_handler: EventHandler) -> None:
+        if not self.init:
+            self.init = True
+            self.init_time = time.time()
+        if time.time() - self.init_time <= self.disable_time:
+            return
+
         if self.last_hovered and not self.is_hovering:  # e.i. on_exit()
             self.color = self.color.darker(50)
         elif not self.last_hovered and self.is_hovering:  # e.i. on_enter()

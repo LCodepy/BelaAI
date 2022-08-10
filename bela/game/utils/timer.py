@@ -9,7 +9,7 @@ class Timer:
     start: float
     duration: float
     activation: Callable
-    cls: type
+    cls: object
 
 
 class TimerHandler:
@@ -34,10 +34,10 @@ class TimerHandler:
         for id_ in to_remove:
             self.timers.pop(id_)
 
-    def add_timer(self, id_: str, duration: float, activation: Callable, cls: type) -> None:
+    def add_timer(self, id_: str, duration: float, activation: Callable, cls: object) -> None:
         self.timers[id_] = Timer(time.time(), duration, activation, cls)
 
-    def add_timer_during_exec(self, id_: str, duration: float, activation: Callable, cls: type) -> None:
+    def add_timer_during_exec(self, id_: str, duration: float, activation: Callable, cls: object) -> None:
         self.to_add.append([id_, Timer(time.time(), duration, activation, cls)])
 
     def remove_timer(self, id_: str) -> None:

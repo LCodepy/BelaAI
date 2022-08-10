@@ -4,7 +4,7 @@ from enum import Enum, auto
 from typing import Tuple, Optional
 
 import pygame
-#lol
+
 
 class GameState(Enum):
 
@@ -72,6 +72,7 @@ class Bela:
         ]  # TODO: Replace with False
 
         self.player_turn = 0
+        self.diler = 0
 
         # Game logic
 
@@ -85,7 +86,7 @@ class Bela:
         self.current_state = GameState.ZVANJE_ADUTA
 
         self.cards_on_table = []
-        self.player_cards_on_table = [None, None, None, None]
+        self.player_cards_on_table: list[Optional[str, str]] = [None, None, None, None]
 
         self.adut = None
         self.count_dalje = 0
@@ -94,6 +95,7 @@ class Bela:
         self.zvanja = [[], [], [], []]
         self.zvanje_over = [False, False, False, False]
 
+        self.games = []
         self.points = [0, 0]
 
     def create_cards(self) -> None:
@@ -138,27 +140,28 @@ class Bela:
     def remove_cards_from_table(self) -> [int, int]:
         cards_on_table = list(map(lambda x: x.card, self.cards_on_table))
         stih_value = sum(list(map(self.get_real_card_value, cards_on_table)))
-        first_card = cards_on_table[0]
-        cards = [0, 0, 0, 0]
+        first_card = cards_on_table[1]
+        card_values = [[0, 0, 0][:] for _ in range(4)]
 
         for i, card in enumerate(cards_on_table):
-            if card[1] not in [self.adut, first_card]:
-                continue
-            for j, c in enumerate(cards_on_table):
-                if i == j:
-                    continue
-                if c[1] not in [self.adut, first_card]:
-                    cards[i] += 1
-                elif card[1] == c[1]:
-                    if self.is_card_greater(card, c):
-                        cards[i] += 1
-                elif card[1] in [self.adut, first_card[1]]:
-                    cards[i] += 1
+            card_values[i][2] = int(card[1] == self.adut) * 1000
+            card_values[i][1] = int(card[1] == first_card) * 100
+            card_values[i][0] = self.get_card_value(card)
 
-        ret = self.player_cards_on_table.index(self.cards_on_table[cards.index(max(cards))]), stih_value
+        values_filtered = [sum(d) for d in card_values]
+
         self.cards_on_table.clear()
         self.player_cards_on_table = [None for _ in range(4)]
-        return ret
+
+        idx = values_filtered.index(max(values_filtered))
+        player_turn = self.player_turn - 3
+        if player_turn < 0:
+            player_turn += 4
+        ret = idx + player_turn
+        if ret > 3:
+            ret -= 4
+
+        return ret, stih_value
 
     def player_has_adut(self, id_: int) -> bool:
         return any(card[1] == self.adut for card in self.cards[id_].sve)
@@ -304,7 +307,7 @@ class Bela:
 
     def set_adut(self, adut: str) -> None:
         self.adut = adut
-        self.player_turn = 0
+        self.player_turn = self.diler + 1
 
     def get_adut(self) -> Optional[str]:
         return self.adut

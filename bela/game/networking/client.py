@@ -1,3 +1,4 @@
+import copy
 import math
 import random
 import time
@@ -72,6 +73,8 @@ class Client:
         self.zvanja_dalje = False
         self.called_zvanje = False
         self.card_area = pygame.Rect(350, 240, 100, 80)
+
+        self.timed_actions = [{}, {}]
 
         # Event functions
 
@@ -260,6 +263,8 @@ class Client:
 
         self.timer_handler.update()
 
+        self.update_timed_actions()
+
         if not self.game.is_player_ready(self.__player):
             self.update_menu()
 
@@ -317,7 +322,8 @@ class Client:
             if (
                     self.event_handler.held["left"] and
                     card.rect.collidepoint(self.event_handler.get_pos()) and
-                    self.moving_card is None
+                    self.moving_card is None and
+                    ("MOVE_BACK_CARD" not in self.timed_actions[1] or not self.timed_actions[1]["MOVE_BACK_CARD"][0])
             ):
                 self.moving_card = i
 
@@ -334,7 +340,9 @@ class Client:
                 if card_passed:
                     self.inventory.pop(self.moving_card)
                 else:
-                    self.inventory[self.moving_card].move_back()
+                    self.timed_actions[1]["MOVE_BACK_CARD"] = [True, time.time(), self.moving_card,
+                                                               copy.deepcopy(self.inventory[self.moving_card])]
+                    self.timed_actions[1]["DISPLAY_CARD_ERROR"] = [True, time.time()]
             else:
                 for i, card in enumerate(self.inventory):
                     if card.collision_rect().collidepoint(self.inventory[self.moving_card].get_pos()) and i != self.moving_card:
@@ -346,10 +354,14 @@ class Client:
                         self.selected_cards[self.moving_card], self.selected_cards[i] = self.selected_cards[i], self.selected_cards[self.moving_card]
                         break
                 else:
-                    self.inventory[self.moving_card].move_back()
+                    self.timed_actions[1]["MOVE_BACK_CARD"] = [True, time.time(), self.moving_card,
+                                                               copy.deepcopy(self.inventory[self.moving_card])]
             self.moving_card = None
 
-    def render(self):
+    def update_timed_actions(self) -> None:
+        pass
+
+    def render(self) -> None:
         self.win.fill(Colors.white.c)
         self.canvas.fill((0, 0, 20))
         self.info_canvas.fill((0, 0, 20))
@@ -362,6 +374,8 @@ class Client:
             self.render_lobby()
         else:
             self.render_menu()
+
+        self.render_timed_actions()
 
         self.render_info()
 
@@ -376,7 +390,7 @@ class Client:
 
         if not self.game.is_ready():
             return
-        Label.render_text(self.info_canvas, "INFO PANEL", (10, 10), self.assets.font24, (255, 255, 255), centered=False)
+        Label.render_text(self.info_canvas, "INFO", (10, 10), self.assets.font24, (255, 255, 255), centered=False)
         pygame.draw.line(self.info_canvas, (70, 110, 150), (8, 30), (self.info_canvas.get_width() - 8, 30))
         Label.render_text(
             self.info_canvas,
@@ -391,6 +405,43 @@ class Client:
             self.info_canvas, "GAMESTATE: " + str(self.game.get_current_game_state()).split(".")[1], (10, 80),
             self.assets.font18, (200, 200, 200), centered=False
         )
+
+        Label.render_text(self.info_canvas, "BODOVI", (10, 140), self.assets.font24, (255, 255, 255), centered=False)
+        pygame.draw.line(self.info_canvas, (70, 110, 150), (8, 160), (self.info_canvas.get_width() - 8, 160))
+
+        self.render_score()
+
+    def render_score(self) -> None:
+        y = 200
+        pygame.draw.rect(self.info_canvas, (10, 30, 50), [35, y - 20, self.info_canvas.get_width() - 70, 30])
+
+        Label.render_text(self.info_canvas, "MI", ((self.info_canvas.get_width() + 70) // 4, y),
+                          self.assets.font24, (255, 255, 255))
+        Label.render_text(self.info_canvas, "VI", ((3 * self.info_canvas.get_width() - 70) // 4, y),
+                          self.assets.font24, (255, 255, 255))
+
+        pygame.draw.line(self.info_canvas, (70, 110, 150), (35, y + 10), (self.info_canvas.get_width() - 35, y + 10))
+        pygame.draw.line(self.info_canvas, (70, 110, 150), (self.info_canvas.get_width() // 2, y - 20),
+                         (self.info_canvas.get_width() // 2, y + 200))
+
+        surf = pygame.Surface((self.info_canvas.get_width() - 60, 300), pygame.SRCALPHA)
+        b = 7
+        for i in range(5):
+            b += 2
+            pygame.draw.rect(surf, (0, 0, b), [-2, -2, self.info_canvas.get_width() - 60 + i, 300 + i], 1, 4)
+        self.info_canvas.blit(surf, (32, y - 18))
+
+        games = self.game.games
+        if not games:
+            games.append(["???", "???"])
+
+        for i, game in enumerate(games):
+            Label.render_text(self.info_canvas, game[not self.__player % 2],
+                              ((self.info_canvas.get_width() + 70) // 4, y + 36 + i * 20),
+                              self.assets.font24, (180, 180, 180))
+            Label.render_text(self.info_canvas, game[self.__player % 2],
+                              ((3 * self.info_canvas.get_width() - 70) // 4, y + 36 + i * 20),
+                              self.assets.font24, (180, 180, 180))
 
     def render_game(self) -> None:
         self.canvas.blit(self.assets.table, (self.canvas.get_width() // 2 - self.assets.table.get_width() // 2,
@@ -546,6 +597,14 @@ class Client:
                 card = pygame.transform.rotate(self.assets.card_back, (98 if rot else -82) - alfa)
                 self.canvas.blit(card, (x0 + x - card.get_width()//2, y0 + y - card.get_height()//2))
 
+    def render_timed_actions(self) -> None:
+        for action, args in self.timed_actions[1].items():
+            t = time.time()
+            if action == "DISPLAY_CARD_ERROR" and args[0] and t - args[1] < 0.4:
+                self.display_card_error(t - args[1])
+            if action == "MOVE_BACK_CARD" and args[0] and t - args[1] < 1:
+                self.move_back_card(t - args[1], args[2], args[3])
+
     def calculate_card_positions(self, cards: list, r: int = 100, k: int = 15) -> None:
         self.inventory = []
         x0, y0 = self.card_positions[self.__player % 2]
@@ -567,6 +626,36 @@ class Client:
             for zvanje in self.game.zvanja[self.__player]:
                 if v and self.inventory[i].card not in zvanje:
                     self.selected_cards[i] = False
+
+    # Timed action functions
+
+    def display_card_error(self, current_time) -> None:
+        current_time = 0.2 - abs(current_time - 0.2)
+        alpha = current_time * 500
+
+        rect = pygame.Rect(self.canvas.get_width() // 2 - 60, self.canvas.get_height() // 2 - 60, 120, 120)
+        surf = pygame.Surface((120, 120), pygame.SRCALPHA)
+        pygame.draw.rect(surf, (255, 0, 0, alpha), (0, 0, 120, 120), 0, 4)
+        self.canvas.blit(surf, rect)
+
+    def move_back_card(self, current_time, card, copy_card) -> None:
+        card_x, card_y = copy_card.get_pos()
+        org_x, org_y = copy_card.def_pos
+
+        vel = [org_x - card_x, org_y - card_y]
+        dist = math.sqrt((org_x - card_x) ** 2 + (org_y - card_y) ** 2)
+
+        self.inventory[card].x += vel[0] * min(max(abs(dist), 50), 60) / 1000
+        self.inventory[card].y += vel[1] * min(max(abs(dist), 50), 60) / 1000
+
+        self.timed_actions[1]["MOVE_BACK_CARD"] = [True, time.time(), card, copy_card]
+
+        if (
+            math.sqrt((org_x - self.inventory[card].x) ** 2 + (org_y - self.inventory[card].y) ** 2) <= 10 or
+            self.inventory[card].y > org_y
+        ):
+            self.inventory[card].move_back()
+            self.timed_actions[1]["MOVE_BACK_CARD"] = [False, 0, card, copy_card]
 
     def get_cards(self) -> Hand:
         return self.game.cards[self.__player]

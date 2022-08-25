@@ -11,6 +11,7 @@ class EventHandler:
         self.presses = {"left": False, "middle": False, "right": False, "up": False, "down": False}
         self.releases = {"left": False, "middle": False, "right": False, "up": False, "down": False}
         self.held = {"left": False, "middle": False, "right": False}
+        self.scrolls = {"up": False, "down": False}
 
     def loop(self):
 
@@ -32,12 +33,18 @@ class EventHandler:
                 self.key_unicode = event.unicode
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                i = event.button - 1
-                self.presses[list(self.presses.keys())[i]] = True
+                if event.button < 4:
+                    i = event.button - 1
+                    self.presses[list(self.presses.keys())[i]] = True
+                elif event.button == 4:
+                    self.scrolls["up"] = True
+                else:
+                    self.scrolls["down"] = True
 
             elif event.type == pygame.MOUSEBUTTONUP:
-                i = event.button - 1
-                self.releases[list(self.releases.keys())[i]] = True
+                if event.button < 4:
+                    i = event.button - 1
+                    self.releases[list(self.releases.keys())[i]] = True
 
         return True
 
@@ -48,6 +55,7 @@ class EventHandler:
         self.presses = {"left": False, "middle": False, "right": False, "up": False, "down": False}
         self.releases = {"left": False, "middle": False, "right": False, "up": False, "down": False}
         self.held = {"left": False, "middle": False, "right": False}
+        self.scrolls = {"up": False, "down": False}
 
     def get_pos(self):
         return pygame.mouse.get_pos()

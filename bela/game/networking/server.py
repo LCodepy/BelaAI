@@ -101,6 +101,12 @@ class Server:
                     if all(game.zvanje_over):
                         game.next_game_state()
 
+                if Commands.equals(data, Commands.END_TURN):
+                    game.end_turn(player_id)
+
+                if Commands.equals(data, Commands.END_GAME):
+                    game.end_game(player_id)
+
                 self.games[game_id] = game
 
                 connection.sendall(

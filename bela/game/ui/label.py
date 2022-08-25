@@ -67,6 +67,14 @@ class Label:
                                   + (t.get_rect().h + 2) * i))
 
     @staticmethod
-    def render_text(surface, text, pos, font, color, bold: bool = False, centered: bool = True):
+    def render_text(surface, text, pos, font, color, bold: bool = False, centered: bool = True, alpha: int = -1):
         rendered = font.render(text, bold, color)
-        surface.blit(rendered, (pos[0] - rendered.get_rect().w // 2 * centered, pos[1] - rendered.get_rect().h // 2 * centered))
+        if alpha >= 0:
+            transparent = pygame.Surface(rendered.get_size(), pygame.SRCALPHA)
+            transparent.blit(rendered, (0, 0))
+            transparent.set_alpha(alpha)
+            surface.blit(transparent, (pos[0] - rendered.get_rect().w // 2 * centered,
+                                       pos[1] - rendered.get_rect().h // 2 * centered))
+        else:
+            surface.blit(rendered, (pos[0] - rendered.get_rect().w // 2 * centered,
+                                    pos[1] - rendered.get_rect().h // 2 * centered))

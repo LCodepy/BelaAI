@@ -61,8 +61,9 @@ class Bela:
     Class that contains most of the game logic and features.
     """
 
-    def __init__(self, id_: int) -> None:
+    def __init__(self, id_: int, max_points: int = 1001) -> None:
         self.id = id_
+        self.max_points = max_points
 
         self.player_data = [
             {"nickname": "", "ready": False},
@@ -71,7 +72,7 @@ class Bela:
             {"nickname": "", "ready": True}
         ]  # TODO: Replace with False
 
-        self.player_turn = 0
+        self.player_turn = 1
         self.diler = 0
 
         # Game logic
@@ -95,8 +96,17 @@ class Bela:
         self.zvanja = [[], [], [], []]
         self.zvanje_over = [False, False, False, False]
 
-        self.games = []
         self.points = [0, 0]
+        self.stihovi = [[], [], [], []]
+
+        self.turn_just_ended = False
+        self.current_turn_winner = -1
+        self.ready_to_end_turn = [False] * 4
+        self.ready_to_end_game = [False] * 4
+
+        self.current_game_over = False
+
+        self.games = [[random.randint(1, 100), random.randint(1, 100)] for i in range(14)]
 
     def create_cards(self) -> None:
         types = ["herc", "pik", "karo", "tref"]
@@ -108,7 +118,7 @@ class Bela:
         random.shuffle(self.deck)
 
     def deal_cards(self) -> None:
-        for i in range(32):
+        for i in range(4):  # TODO: REPLACE WITH '32):'
             if i < 24:
                 self.cards[i % 4].netalon.append(self.deck.pop())
             else:
@@ -150,9 +160,6 @@ class Bela:
 
         values_filtered = [sum(d) for d in card_values]
 
-        self.cards_on_table.clear()
-        self.player_cards_on_table = [None for _ in range(4)]
-
         idx = values_filtered.index(max(values_filtered))
         player_turn = self.player_turn - 3
         if player_turn < 0:
@@ -178,11 +185,11 @@ class Bela:
     def get_card_value(self, card: Tuple[str, str]) -> int:
         if card[0] == "9":
             if card[1] == self.adut:
-                return 19
+                return 18
             return 9
         elif card[0] == "unter":
             if card[1] == self.adut:
-                return 18
+                return 19
             return 12
         if card[0] in "78":
             return int(card[0])
@@ -286,6 +293,67 @@ class Bela:
     def set_turn(self, id_: int) -> None:
         self.player_turn = id_
 
+    def end_turn(self, id_: int) -> None:
+        self.ready_to_end_turn[id_] = True
+
+        if all(self.ready_to_end_turn):
+            self.stihovi[self.current_turn_winner].append([card.card for card in self.cards_on_table])
+            self.set_turn(self.current_turn_winner)
+            self.cards_on_table.clear()
+            self.player_cards_on_table = [None] * 4
+            self.turn_just_ended = False
+            self.ready_to_end_turn = [False] * 4
+
+            if not self.cards[0].sve:
+                self.current_game_over = True
+                self.set_turn(-1)
+
+    def end_game(self, id_: int) -> None:
+        self.ready_to_end_game[id_] = True
+
+        if all(self.ready_to_end_game):
+            self.current_game_over = False
+            self.games.append(self.points)
+
+            self.start_new_game()
+
+    def start_new_game(self) -> None:
+        self.diler += 1
+        if self.diler > 3:
+            self.diler = 0
+
+        self.player_turn = self.diler + 1
+        if self.player_turn > 3:
+            self.player_turn = 0
+
+        self.deck.clear()
+        self.create_cards()
+        self.rifle_shufle()
+        self.cards = [Hand(), Hand(), Hand(), Hand()]
+        self.deal_cards()
+
+        self.current_state = GameState.ZVANJE_ADUTA
+
+        self.cards_on_table.clear()
+        self.player_cards_on_table = [None] * 4
+
+        self.adut = None
+        self.count_dalje = 0
+        self.dalje = [False] * 4
+
+        self.zvanja = [[], [], [], []]
+        self.zvanje_over = [False] * 4
+
+        self.points = [0, 0]
+        self.stihovi = [[], [], [], []]
+
+        self.turn_just_ended = False
+        self.current_turn_winner = -1
+        self.ready_to_end_turn = [False] * 4
+        self.ready_to_end_game = [False] * 4
+
+        self.current_game_over = False
+
     def next_game_state(self) -> None:
         if self.current_state is GameState.ZVANJE_ADUTA:
             self.current_state = GameState.ZVANJA
@@ -300,14 +368,21 @@ class Bela:
 
         if len(self.cards_on_table) == 4:
             turn, stih = self.remove_cards_from_table()
-            self.set_turn(turn)
+            self.turn_just_ended = True
+            self.set_turn(-1)
+            self.current_turn_winner = turn
             self.points[turn % 2] += stih
         else:
             self.next_turn()
 
+    def get_final_game_score(self) -> Tuple[int, int]:
+        return sum(map(lambda x: x[0], self.games)), sum(map(lambda x: x[1], self.games))
+
     def set_adut(self, adut: str) -> None:
         self.adut = adut
         self.player_turn = self.diler + 1
+        if self.player_turn > 3:
+            self.player_turn = 0
 
     def get_adut(self) -> Optional[str]:
         return self.adut

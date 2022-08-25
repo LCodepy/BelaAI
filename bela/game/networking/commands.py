@@ -22,6 +22,8 @@ class Commands:
     DALJE = Command("DALJE", None)
     ZVANJE = Command("ZVANJE", (list, ))
     ZVANJE_GOTOVO = Command("ZVANJE_GOTOVO", None)
+    END_TURN = Command("END_TURN", None)
+    END_GAME = Command("END_GAME", None)
 
     @staticmethod
     def new(c: Command, *args) -> Command:

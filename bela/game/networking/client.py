@@ -1,8 +1,6 @@
 import copy
 import math
-import random
 import time
-from enum import Enum
 from typing import Any
 
 import pygame
@@ -14,7 +12,7 @@ from bela.game.utils.assets import Assets
 from bela.game.utils.shapes import RotatingRect
 from bela.game.utils.timer import TimerHandler
 from ..ui.label import Label
-from ..utils import config
+from ..utils import config, rendering
 from ..events.events import EventHandler
 from ..networking.network import Network
 from ..utils.colors import *
@@ -62,13 +60,12 @@ class Client:
         self.__fps = 60
 
         self.pressed_point = None
-        self.winner = None
         self.data: dict[str, Any] = {"game": None}
 
         self.label_dots = 0
 
-        self.player_positions = [(280, 500), (530, 500), (530, 100), (280, 100)]
-        self.card_positions = [(280, 500), (530, 500)]
+        self.player_positions = [(270, 500), (530, 500), (530, 100), (270, 100)]
+        self.card_positions = [(270, 500), (530, 500)]
         self.talon_card_positions = [(280, 330), (530, 330)]
         self.inventory = []
         self.inventory_calculated = False
@@ -77,6 +74,20 @@ class Client:
         self.zvanja_dalje = False
         self.called_zvanje = False
         self.card_area = pygame.Rect(350, 240, 100, 80)
+        self.switched_cards = []
+        self.switched_cards_marker_color = (0, 255, 0, 0)
+        self.placed_card_marker_color = (0, 0, 255, 0)
+        self.cards_on_table = []
+        self.cards_on_table_positions_p1 = []
+        self.cards_on_table_positions_p2 = []
+        self.gained_stihovi_positions = [(200, 350), (600, 350), (600, 250), (200, 250)]
+        self.gained_stihovi_angles = [-45, 45, -45, 45]
+        self.activated_turn_end = False
+        self.activated_game_over = False
+        self.end_game = False
+        self.score_y_offset = 15
+
+        self.last_frame_cards_on_table = []
 
         self.timed_actions = [{}, {}]
 
@@ -278,13 +289,26 @@ class Client:
             self.update_lobby()
 
     def update_game(self) -> None:
+        if self.game.current_game_over and not self.activated_game_over:
+            self.timed_actions[1]["GAME_OVER"] = [True, time.time()]
+            self.activated_game_over = True
+
+        if not self.game.current_game_over:
+            self.activated_game_over = False
+
+        self.update_score()
+
         self.update_cards()
 
         self.sort_cards_button.update(self.event_handler)
 
+        if self.end_game:
+            self.end_current_game()
+            self.end_game = False
+
         if self.game.get_current_game_state() is GameState.ZVANJE_ADUTA:
             if not self.inventory_calculated:
-                self.calculate_card_positions(self.game.get_netalon(self.__player), 100)
+                self.calculate_card_positions(self.game.get_netalon(self.__player))
             if (
                     self.game.get_adut() is None and
                     self.game.player_turn == self.__player and
@@ -293,14 +317,21 @@ class Client:
                 self.update_calling_adut()
 
         if self.game.get_current_game_state() is GameState.ZVANJA and len(self.inventory) in (0, 6):
-            self.calculate_card_positions(self.get_cards().sve, 100)
+            self.calculate_card_positions(self.get_cards().sve)
 
         if self.game.get_current_game_state() is GameState.ZVANJA and not self.zvanja_dalje and not self.called_zvanje:
             self.update_zvanja()
 
+    def update_score(self) -> None:
+        if self.event_handler.scrolls["up"]:
+            self.score_y_offset = min(self.score_y_offset + 10, 15)
+        elif self.event_handler.scrolls["down"]:
+            self.score_y_offset = max(self.score_y_offset - 10, 15 - (len(self.game.games) - 5) * 25)
+
     def update_calling_adut(self) -> None:
         for button in self.call_adut_buttons:
             button.update(self.event_handler)
+
         if self.game.count_dalje < 3:
             self.dalje_button.update(self.event_handler)
 
@@ -321,52 +352,116 @@ class Client:
         self.player_count_label.set_text("Spremni igrači: " + str(self.game.get_ready_player_count()) + "/4")
 
     def update_cards(self) -> None:
+        self.update_cards_in_inventory()
+
+        if self.game.turn_just_ended and not self.activated_turn_end:
+            self.timed_actions[0]["TURN_ENDED"] = [True, time.time()]
+            self.cards_on_table = copy.deepcopy(self.game.cards_on_table)
+            self.activated_turn_end = True
+
+        if (
+            len(self.game.cards_on_table) != len(self.last_frame_cards_on_table)
+            and self.game.cards_on_table
+        ):
+            self.timed_actions[0]["DISPLAY_CARD_PLAYED"] = [True, time.time(), self.game.cards_on_table[-1]]
+
+        if self.event_handler.releases["left"] and self.moving_card is not None:
+            if self.card_area.collidepoint(self.inventory[self.moving_card].get_pos()):
+                self.handle_card_playing()
+            else:
+                self.handle_card_swapping()
+            self.moving_card = None
+
+        self.last_frame_cards_on_table = self.game.cards_on_table
+
+    def update_cards_in_inventory(self) -> None:
         for i, card in enumerate(reversed(self.inventory)):
             i = len(self.inventory) - i - 1
             if (
                     self.event_handler.held["left"] and
                     card.rect.collidepoint(self.event_handler.get_pos()) and
                     self.moving_card is None and
-                    ("MOVE_BACK_CARD" not in self.timed_actions[1] or not self.timed_actions[1]["MOVE_BACK_CARD"][0])
+                    ("MOVE_BACK_CARD" not in self.timed_actions[0] or not self.timed_actions[0]["MOVE_BACK_CARD"][0])
             ):
                 self.moving_card = i
 
             if self.moving_card == i:
                 self.inventory[i].set_pos(self.event_handler.get_pos())
 
-        if (
-                self.event_handler.releases["left"] and
-                self.moving_card is not None
-        ):
-            if self.card_area.collidepoint(self.inventory[self.moving_card].get_pos()):
-                card_passed = self.network.send(Commands.new(Commands.PLAY_CARD, self.inventory[self.moving_card]))
-                self.data = self.network.recv_only()
-                if card_passed:
-                    self.inventory.pop(self.moving_card)
-                else:
-                    self.timed_actions[1]["MOVE_BACK_CARD"] = [True, time.time(), self.moving_card,
-                                                               copy.deepcopy(self.inventory[self.moving_card])]
-                    self.timed_actions[1]["DISPLAY_CARD_ERROR"] = [True, time.time()]
-            else:
-                for i, card in enumerate(self.inventory):
-                    if card.collision_rect().collidepoint(
-                            self.inventory[self.moving_card].get_pos()) and i != self.moving_card:
-                        self.inventory[self.moving_card].move_back()
-                        c1 = self.game.get_card_index(self.__player, self.inventory[self.moving_card].card)
-                        c2 = self.game.get_card_index(self.__player, self.inventory[i].card)
-                        self.data = self.network.send(Commands.new(Commands.SWAP_CARDS, (c1, c2)))
-                        self.inventory[self.moving_card].card, self.inventory[i].card = \
-                            self.inventory[i].card, self.inventory[self.moving_card].card
-                        self.selected_cards[self.moving_card], self.selected_cards[i] = \
-                            self.selected_cards[i], self.selected_cards[self.moving_card]
-                        break
-                else:
-                    self.timed_actions[1]["MOVE_BACK_CARD"] = [True, time.time(), self.moving_card,
-                                                               copy.deepcopy(self.inventory[self.moving_card])]
-            self.moving_card = None
+    def handle_card_playing(self) -> None:
+        card_passed = self.network.send(Commands.new(Commands.PLAY_CARD, self.inventory[self.moving_card]))
+        self.data = self.network.recv_only()
+        if card_passed:
+            self.inventory.pop(self.moving_card)
+            if self.game.cards_on_table:
+                self.timed_actions[0]["DISPLAY_CARD_PLAYED"] = [True, time.time(), self.game.cards_on_table[-1]]
+        else:
+            self.timed_actions[0]["MOVE_BACK_CARD"] = [True, time.time(), self.moving_card,
+                                                       copy.deepcopy(self.inventory[self.moving_card])]
+            self.timed_actions[1]["DISPLAY_CARD_ERROR"] = [True, time.time()]
+
+    def handle_card_swapping(self) -> None:
+        for i, card in enumerate(self.inventory):
+            if (
+                card.collision_rect().collidepoint(self.inventory[self.moving_card].get_pos()) and
+                i != self.moving_card
+            ):
+                self.inventory[self.moving_card].move_back()
+                c1 = self.game.get_card_index(self.__player, self.inventory[self.moving_card].card)
+                c2 = self.game.get_card_index(self.__player, self.inventory[i].card)
+
+                self.data = self.network.send(Commands.new(Commands.SWAP_CARDS, (c1, c2)))
+
+                self.inventory[self.moving_card].card, self.inventory[i].card = \
+                    self.inventory[i].card, self.inventory[self.moving_card].card
+                self.selected_cards[self.moving_card], self.selected_cards[i] = \
+                    self.selected_cards[i], self.selected_cards[self.moving_card]
+
+                self.switched_cards = [self.moving_card, i]
+                self.timed_actions[0]["SWITCH_CARDS"] = [True, time.time()]
+                break
+        else:
+            self.timed_actions[0]["MOVE_BACK_CARD"] = [True, time.time(), self.moving_card,
+                                                       copy.deepcopy(self.inventory[self.moving_card])]
 
     def update_timed_actions(self) -> None:
-        pass
+        to_remove = []
+        to_add = []
+        for action, args in self.timed_actions[0].items():
+            t = time.time()
+
+            if action == "MOVE_BACK_CARD" and args[0] and t - args[1] < 1:
+                self.move_back_card(t - args[1], args[2], args[3])
+
+            if action == "SWITCH_CARDS" and args[0]:
+                if t - args[1] < 1:
+                    self.switch_card_unmark(t - args[1])
+                elif t - args[1] > 1:
+                    self.switched_cards = []
+                    to_remove.append("SWITCH_CARDS")
+
+            if action == "DISPLAY_CARD_PLAYED" and args[0]:
+                if t - args[1] < 0.8:
+                    self.placed_card_unmark(t - args[1])
+                elif t - args[1] > 0.8:
+                    to_remove.append("DISPLAY_CARD_PLAYED")
+
+            if action == "TURN_ENDED" and args[0]:
+                if t - args[1] < 2:
+                    self.move_removed_cards(t - args[1])
+                elif t - args[1] > 2:
+                    self.cards_on_table_positions_p1 = []
+                    self.cards_on_table_positions_p2 = []
+                    self.cards_on_table = []
+                    self.activated_turn_end = False
+                    to_remove.append("TURN_ENDED")
+                    self.data = self.network.send(Commands.END_TURN)
+
+        for rem in to_remove:
+            self.timed_actions[0].pop(rem)
+
+        for add in to_add:
+            self.timed_actions[0][add[0]] = add[1]
 
     def render(self) -> None:
         self.win.fill(Colors.white.c)
@@ -401,7 +496,8 @@ class Client:
         pygame.draw.line(self.info_canvas, (70, 110, 150), (8, 30), (self.info_canvas.get_width() - 8, 30))
         Label.render_text(
             self.info_canvas,
-            "NA POTEZU: " + str(self.game.player_data[self.game.player_turn]["nickname"]),
+            "NA POTEZU: " + str(self.game.player_data[self.game.player_turn]["nickname"]
+                                if self.game.player_turn != -1 else ""),
             (10, 40), self.assets.font18, (200, 200, 200), centered=False
         )
         Label.render_text(
@@ -429,7 +525,7 @@ class Client:
 
         pygame.draw.line(self.info_canvas, (70, 110, 150), (35, y + 10), (self.info_canvas.get_width() - 35, y + 10))
         pygame.draw.line(self.info_canvas, (70, 110, 150), (self.info_canvas.get_width() // 2, y - 20),
-                         (self.info_canvas.get_width() // 2, y + 200))
+                         (self.info_canvas.get_width() // 2, y + 240))
 
         surf = pygame.Surface((self.info_canvas.get_width() - 60, 300), pygame.SRCALPHA)
         b = 7
@@ -442,13 +538,32 @@ class Client:
         if not games:
             games.append(["???", "???"])
 
+        score_canvas = pygame.Surface((self.info_canvas.get_width() - 60, 220), pygame.SRCALPHA)
+
         for i, game in enumerate(games):
-            Label.render_text(self.info_canvas, str(game[self.__player % 2]),
-                              ((self.info_canvas.get_width() + 70) // 4, y + 36 + i * 25),
+            Label.render_text(score_canvas, str(game[self.__player % 2]),
+                              ((score_canvas.get_width() + 5) // 4, self.score_y_offset + i * 25),
                               self.assets.font24, (180, 180, 180))
-            Label.render_text(self.info_canvas, str(game[not self.__player % 2]),
-                              ((3 * self.info_canvas.get_width() - 70) // 4, y + 36 + i * 25),
+            Label.render_text(score_canvas, str(game[not self.__player % 2]),
+                              ((3 * score_canvas.get_width() - 5) // 4, self.score_y_offset + i * 25),
                               self.assets.font24, (180, 180, 180))
+
+        self.info_canvas.blit(score_canvas, (self.info_canvas.get_width() // 2 - score_canvas.get_width() // 2, y + 18))
+
+        pygame.draw.line(self.info_canvas, (70, 110, 150), (35, 445), (self.info_canvas.get_width() - 35, 445))
+        surf2 = pygame.Surface(self.info_canvas.get_size(), pygame.SRCALPHA)
+        a = 255
+        for i in range(35):
+            a -= 7
+            pygame.draw.rect(surf2, (0, 0, 20, a),
+                             [36, 444 - i, self.info_canvas.get_width() - 71, 1])
+        self.info_canvas.blit(surf2, (0, 0))
+
+        final_score = self.game.get_final_game_score()
+        Label.render_text(self.info_canvas, str(final_score[0]), ((self.info_canvas.get_width() + 70) // 4, 465),
+                          self.assets.font24, (220, 220, 220))
+        Label.render_text(self.info_canvas, str(final_score[1]), ((3 * self.info_canvas.get_width() - 70) // 4, 465),
+                          self.assets.font24, (220, 220, 220))
 
     def render_game(self) -> None:
         self.canvas.blit(self.assets.table, (self.canvas.get_width() // 2 - self.assets.table.get_width() // 2,
@@ -522,6 +637,14 @@ class Client:
             Label.render_text(self.canvas, "Ti" if idx == self.__player else self.game.get_nickname(idx),
                               (x, y + 70 * (not int(idx < 2) if self.__player > 1 else int(idx < 2)) - 35),
                               self.assets.font24, (255, 255, 255), bold=True)
+            if idx == self.game.diler:
+                add_y = not int(idx < 2) if self.__player > 1 else int(idx < 2)
+                if add_y == 0:
+                    add_y = -1
+                add_y *= 20
+                Label.render_text(self.canvas, "[DILER]",
+                                  (x, y + 70 * (not int(idx < 2) if self.__player > 1 else int(idx < 2)) - 35 + add_y),
+                                  self.assets.font18, (220, 220, 220), bold=True)
 
     def render_hand(self) -> None:
         if self.game.get_current_game_state() is GameState.ZVANJE_ADUTA and not self.game.dalje[self.__player]:
@@ -534,13 +657,42 @@ class Client:
             self.render_cards(self.get_cards().sve)
 
     def render_cards(self, cards: list) -> None:
-        for card in self.game.cards_on_table:
-            if card is not None:
-                self.canvas.blit(pygame.transform.rotate(self.assets.card_images[card.card], -82 - card.angle),
-                                 (card.x - card.rect.w // 2, card.y - card.rect.h // 2))
+        self.render_gained_cards()
 
         self.render_player_cards()
 
+        self.render_cards_on_table()
+
+        for i in self.switched_cards:
+            card = cards[i]
+            x = self.inventory[i].x
+            y = self.inventory[i].y
+            alfa = self.inventory[i].angle
+            card = pygame.transform.rotate(self.assets.card_images[card], -82 - alfa)
+            self.render_switched_card_marked(card, x, y)
+
+        self.render_cards_in_hand(cards)
+
+        if self.moving_card is not None:
+            card = self.inventory[self.moving_card]
+            self.canvas.blit(
+                img := pygame.transform.rotate(self.assets.card_images[card.card], -82 - card.angle),
+                (card.x - img.get_width() // 2, card.y - img.get_height() // 2)
+            )
+
+    def render_gained_cards(self) -> None:
+        for i in range(4):
+            rel_player = i
+            if self.__player > 1:
+                rel_player += 2
+            if rel_player > 3:
+                rel_player = rel_player - 4
+            if self.game.stihovi[i]:
+                x, y = self.gained_stihovi_positions[rel_player]
+                card = pygame.transform.rotate(self.assets.card_back, self.gained_stihovi_angles[rel_player])
+                self.canvas.blit(card, (x - card.get_width() // 2, y - card.get_height() // 2))
+
+    def render_cards_in_hand(self, cards: list) -> None:
         for i, card in enumerate(cards):
             if i == self.moving_card or self.selected_cards[i]:
                 continue
@@ -548,6 +700,11 @@ class Client:
             y = self.inventory[i].y
             alfa = self.inventory[i].angle
             card = pygame.transform.rotate(self.assets.card_images[card], -82 - alfa)
+            if i in self.switched_cards:
+                if abs(self.switched_cards[0] - self.switched_cards[1]) > 1:
+                    self.render_switched_card_marked(card, x, y)
+                elif i == min(self.switched_cards):
+                    self.render_switched_card_marked(card, x, y)
             self.canvas.blit(card, (x - card.get_width() // 2, y - card.get_height() // 2))
 
         for i, card in enumerate(cards):
@@ -560,18 +717,40 @@ class Client:
             card = pygame.transform.scale(card, (int(card.get_width() * 1.2), int(card.get_height() * 1.2)))
             self.canvas.blit(card, (x - card.get_width() // 2, y - card.get_height() // 2))
 
-        if self.moving_card is not None:
-            card = self.inventory[self.moving_card]
-            self.canvas.blit(
-                img := pygame.transform.rotate(self.assets.card_images[card.card], -82 - card.angle),
-                (card.x - img.get_width() // 2, card.y - img.get_height() // 2)
-            )
+    def render_cards_on_table(self) -> None:
+        if self.game.turn_just_ended:
+            for card in self.cards_on_table:
+                if card is None:
+                    continue
+                card_img = pygame.transform.rotate(self.assets.card_images[card.card], -82 - card.angle)
+                self.canvas.blit(card_img, (card.x - card_img.get_width() // 2, card.y - card_img.get_height() // 2))
+            return
+
+        for card in self.game.cards_on_table:
+            if card is None:
+                continue
+            card_img = pygame.transform.rotate(self.assets.card_images[card.card], -82 - card.angle)
+            if (
+                "DISPLAY_CARD_PLAYED" in self.timed_actions[0] and
+                card.card == self.timed_actions[0]["DISPLAY_CARD_PLAYED"][2].card
+            ):
+                action = self.timed_actions[0]["DISPLAY_CARD_PLAYED"]
+                current_time = time.time() - action[1]
+                if action[0] and current_time < 0.8:
+
+                    rendering.render_outline(
+                        card_img, self.canvas, self.placed_card_marker_color, card.x, card.y, 3, 3, 2
+                    )
+            self.canvas.blit(card_img, (card.x - card_img.get_width() // 2, card.y - card_img.get_height() // 2))
+
+    def render_switched_card_marked(self, card: pygame.Surface, x: int, y: int) -> None:
+        rendering.render_outline(card, self.canvas, self.switched_cards_marker_color, x, y, 3, 3, 2)
 
     def render_player_cards(self) -> None:
-        k = 15
-        r = 100
+        self.render_players_cards_in_talon()
+        self.render_players_cards_in_hand()
 
-        # Cards in talon
+    def render_players_cards_in_talon(self) -> None:
         for p in range(4):
             if self.game.dalje[p] or self.game.get_current_game_state() is not GameState.ZVANJE_ADUTA:
                 continue
@@ -587,7 +766,7 @@ class Client:
             self.canvas.blit(card, (x - card.get_width() // 2, y - card.get_height() // 2 - 3))
             self.canvas.blit(card, (x - card.get_width() // 2, y - card.get_height() // 2 + 3))
 
-        # Cards in hand
+    def render_players_cards_in_hand(self, k: int = 15, r: int = 100) -> None:
         for p in range(4):
             if p == self.__player:
                 continue
@@ -613,12 +792,47 @@ class Client:
         self.timed_actions_before_canvas = pygame.Surface(self.canvas.get_size(), pygame.SRCALPHA)
         self.timed_actions_after_canvas = pygame.Surface(self.canvas.get_size(), pygame.SRCALPHA)
 
+        to_remove = []
+
         for action, args in self.timed_actions[1].items():
             t = time.time()
+
             if action == "DISPLAY_CARD_ERROR" and args[0] and t - args[1] < 0.4:
                 self.display_card_error(t - args[1])
-            if action == "MOVE_BACK_CARD" and args[0] and t - args[1] < 1:
-                self.move_back_card(t - args[1], args[2], args[3])
+
+            if action == "GAME_OVER" and args[0]:
+                if t - args[1] < 8:
+                    self.display_game_over(t - args[1])
+                else:
+                    self.end_game = True
+                    to_remove.append("GAME_OVER")
+
+        for k in to_remove:
+            self.timed_actions[1].pop(k)
+
+    def end_current_game(self) -> None:
+        self.data = self.network.send(Commands.END_GAME)
+
+        self.inventory = []
+        self.inventory_calculated = False
+        self.moving_card = None
+        self.selected_cards = [False for _ in range(8)]
+        self.zvanja_dalje = False
+        self.called_zvanje = False
+        self.switched_cards = []
+        self.cards_on_table = []
+        self.cards_on_table_positions_p1 = []
+        self.cards_on_table_positions_p2 = []
+        self.activated_turn_end = False
+        self.last_frame_cards_on_table = []
+        self.end_game = False
+
+        self.sort_cards_button.reinit()
+        self.nema_zvanja_button.reinit()
+        self.ima_zvanja_button.reinit()
+        self.dalje_button.reinit()
+        for btn in self.call_adut_buttons:
+            btn.reinit()
 
     def calculate_card_positions(self, cards: list, r: int = 100, k: int = 15) -> None:
         self.inventory = []
@@ -642,18 +856,165 @@ class Client:
                 if v and self.inventory[i].card not in zvanje:
                     self.selected_cards[i] = False
 
+    def calculate_card_removal_paths_p1(self, gap: int = 8, interval: float = 0.5) -> None:
+        if self.cards_on_table_positions_p1:
+            return
+
+        for i, card in enumerate(self.cards_on_table):
+            new_x = self.canvas.get_width() // 2 + i * (gap + self.assets.card_width) - \
+                                                        (gap * 3/2 + self.assets.card_width * 3/2)
+            new_y = self.canvas.get_height() // 2
+
+            dist_x = new_x - card.x
+            dist_y = new_y - card.y
+            dist_angle = (card.angle + 82)
+            if card.angle < 82:
+                dist_angle *= -1
+
+            vel_x = dist_x / interval
+            vel_y = dist_y / interval
+            vel_angle = dist_angle / interval
+
+            card_x = card.x
+            card_y = card.y
+            angle = card.angle
+
+            n = 10
+            path = []
+            for j in range(1, n):
+                card_x += vel_x * interval / n
+                card_y += vel_y * interval / n
+                angle += vel_angle * interval / n
+                path.append([interval / n * j, int(card_x), int(card_y), int(angle)])
+            path.append([interval, new_x, new_y, -82])
+
+            self.cards_on_table_positions_p1.append(path)
+
+    def calculate_card_removal_paths_p2(self, interval: float = 0.5) -> None:
+        if self.cards_on_table_positions_p2:
+            return
+
+        rel_turn = self.game.current_turn_winner
+        if self.__player > 1:
+            rel_turn -= 2
+
+        new_x, new_y = self.gained_stihovi_positions[rel_turn]
+        new_angle = self.gained_stihovi_angles[rel_turn]
+
+        for i, card in enumerate(self.cards_on_table):
+            dist_x = new_x - card.x
+            dist_y = new_y - card.y
+            dist_angle = card.angle - new_angle
+            if card.angle < -new_angle:
+                dist_angle *= -1
+
+            vel_x = dist_x / interval
+            vel_y = dist_y / interval
+            vel_angle = dist_angle / interval
+
+            card_x = card.x
+            card_y = card.y
+            angle = card.angle
+
+            n = 10
+            path = []
+            for j in range(1, n):
+                card_x += vel_x * interval / n
+                card_y += vel_y * interval / n
+                angle += vel_angle * interval / n
+                path.append([interval / n * j, int(card_x), int(card_y), int(angle)])
+            path.append([interval, new_x, new_y, new_angle])
+
+            self.cards_on_table_positions_p2.append(path)
+
     # Timed action functions
 
-    def display_card_error(self, current_time) -> None:
-        current_time = 0.2 - abs(current_time - 0.2)
-        alpha = current_time * 500
+    def display_card_error(self, current_time: float) -> None:
+        value = 0.2 - abs(current_time - 0.2)
+        alpha = value * 500
 
         rect = pygame.Rect(self.canvas.get_width() // 2 - 60, self.canvas.get_height() // 2 - 60, 120, 120)
         surf = pygame.Surface((120, 120), pygame.SRCALPHA)
         pygame.draw.rect(surf, (255, 0, 0, alpha), (0, 0, 120, 120), 0, 4)
         self.timed_actions_before_canvas.blit(surf, rect)
 
-    def move_back_card(self, current_time, card, copy_card) -> None:
+    def display_game_over(self, current_time: float) -> None:
+        value = 4 - abs(current_time - 4)
+        alpha = max(min(int(value * 800), 255), 0)
+
+        surf = pygame.Surface(self.canvas.get_size(), pygame.SRCALPHA)
+        pygame.draw.rect(surf, (0, 0, 0, 150), self.canvas.get_rect())
+
+        Label.render_text(
+            surf,
+            "GAME OVER",
+            (self.canvas.get_width() // 2, self.canvas.get_height() // 2 - 100),
+            self.assets.font48,
+            (255, 255, 255),
+            bold=True
+        )
+
+        str_team1 = self.game.player_data[0]["nickname"] + " & " + self.game.player_data[2]["nickname"]
+        str_team2 = self.game.player_data[1]["nickname"] + " & " + self.game.player_data[3]["nickname"]
+        k1 = len(str_team2) - len(str_team1)
+        k2 = -k1
+        Label.render_text(
+            surf,
+            " " * max(k1, 0) + str_team1 + "  -  " + str_team2 + " " * max(k2, 0),
+            (self.canvas.get_width() // 2, self.canvas.get_height() // 2),
+            self.assets.font24,
+            (200, 200, 200)
+        )
+        str_p1 = str(self.game.points[0])
+        str_p2 = str(self.game.points[1])
+        k1 = len(str_p2) - len(str_p1)
+        k2 = -k1
+        Label.render_text(
+            surf,
+            " " * max(k1, 0) + str_p1 + "  -  " + str_p2 + " " * max(k2, 0),
+            (self.canvas.get_width() // 2, self.canvas.get_height() // 2 + 40),
+            self.assets.font24,
+            (200, 200, 200)
+        )
+
+        surf.set_alpha(alpha)
+
+        self.timed_actions_after_canvas.blit(surf, (0, 0))
+
+    def switch_card_unmark(self, current_time: float) -> None:
+        value = 0.5 - abs(current_time - 0.5)
+        alpha = value * 300
+        self.switched_cards_marker_color = (0, 255, 0, max(min(255, alpha), 0))
+
+    def placed_card_unmark(self, current_time: float) -> None:
+        value = 0.4 - abs(current_time - 0.4)
+        alpha = value * 300
+        self.placed_card_marker_color = (0, 0, 255, max(min(255, alpha), 0))
+
+    def move_removed_cards(self, current_time: float) -> None:
+        if not self.cards_on_table_positions_p1:
+            self.calculate_card_removal_paths_p1()
+        if not self.cards_on_table_positions_p2 and self.cards_on_table_positions_p1:
+            self.calculate_card_removal_paths_p2()
+
+        if current_time < 1:
+            for i, positions in enumerate(self.cards_on_table_positions_p1):
+                for pos in positions:
+                    if pos[0] < current_time:
+                        self.cards_on_table[i].x = pos[1]
+                        self.cards_on_table[i].y = pos[2]
+                        self.cards_on_table[i].angle = pos[3]
+        else:
+            for i, positions in enumerate(self.cards_on_table_positions_p2):
+                for j, pos in enumerate(positions):
+                    if pos[0] < current_time - 1:
+                        self.cards_on_table[i].x = pos[1]
+                        self.cards_on_table[i].y = pos[2]
+                        self.cards_on_table[i].angle = pos[3]
+                        if j == len(positions) - 1:
+                            self.timed_actions[0]["TURN_ENDED"][1] -= 2
+
+    def move_back_card(self, current_time: float, card: int, copy_card: Card) -> None:
         card_x, card_y = copy_card.get_pos()
         org_x, org_y = copy_card.def_pos
 
@@ -663,7 +1024,7 @@ class Client:
         self.inventory[card].x += vel[0] * min(max(abs(dist), 50), 60) / 1000
         self.inventory[card].y += vel[1] * min(max(abs(dist), 50), 60) / 1000
 
-        self.timed_actions[1]["MOVE_BACK_CARD"] = [True, time.time(), card, copy_card]
+        self.timed_actions[0]["MOVE_BACK_CARD"] = [True, time.time(), card, copy_card]
 
         if (
                 math.sqrt((org_x - self.inventory[card].x) ** 2 + (org_y - self.inventory[card].y) ** 2) <= 10 or
@@ -673,7 +1034,7 @@ class Client:
                 (self.inventory[card].x < org_x and vel[0] < 0)
         ):
             self.inventory[card].move_back()
-            self.timed_actions[1]["MOVE_BACK_CARD"] = [False, 0, card, copy_card]
+            self.timed_actions[0]["MOVE_BACK_CARD"] = [False, 0, card, copy_card]
 
     def get_cards(self) -> Hand:
         return self.game.cards[self.__player]

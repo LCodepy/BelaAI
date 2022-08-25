@@ -63,6 +63,11 @@ class Button:
         self.init = False
         self.init_time = 0
 
+    def reinit(self) -> None:
+        self.disable_time = 0.1
+        self.init_time = 0
+        self.init = False
+
     def set_text(self, text: str) -> None:
         self.text = text
         self.label.set_text(text)
@@ -88,7 +93,7 @@ class Button:
         pos = event_handler.get_pos()
 
         if self.rect.collidepoint(pos):
-            if event_handler.presses["left"]:
+            if event_handler.releases["left"]:
                 self.on_click(*pos)
                 self.is_clicked = True
                 if callable(self.on_click_listener):
@@ -104,14 +109,14 @@ class Button:
                         self.on_hold_listener(self.hold_class, *pos, self)
                     else:
                         self.on_hold_listener(self.hold_class, *pos)
-            else:
-                self.on_hover(*pos)
-                self.is_hovering = True
-                if callable(self.on_hover_listener):
-                    if self.hover_pass_self:
-                        self.on_hover_listener(self.hover_class, *pos, self)
-                    else:
-                        self.on_hover_listener(self.hover_class, *pos)
+
+            self.on_hover(*pos)
+            self.is_hovering = True
+            if callable(self.on_hover_listener):
+                if self.hover_pass_self:
+                    self.on_hover_listener(self.hover_class, *pos, self)
+                else:
+                    self.on_hover_listener(self.hover_class, *pos)
 
     def render(self) -> None:
         if self.img is None:

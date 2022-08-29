@@ -106,11 +106,13 @@ class Server:
                 if Commands.equals(data, Commands.ZVANJE):
                     game.add_zvanja(data.data[0], player_id)
                     game.zvanje_over[player_id][0] = True
+                    if all(map(lambda x: x[0], game.zvanje_over)):
+                        game.calculate_zvanja()
 
                 if Commands.equals(data, Commands.ZVANJE_GOTOVO):
                     game.zvanje_over[player_id][0] = True
                     game.zvanje_over[player_id][1] = True
-                    if all(map(lambda x: x[1], game.zvanje_over)):  # TODO: 1st var in zvanje over is when a player has called and 2nd is when the game state zvanje is to be finished
+                    if all(map(lambda x: x[1], game.zvanje_over)):
                         game.next_game_state()
 
                 if Commands.equals(data, Commands.END_TURN):

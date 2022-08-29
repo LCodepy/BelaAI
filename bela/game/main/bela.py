@@ -94,7 +94,7 @@ class Bela:
         self.dalje = [False, False, False, False]
 
         self.zvanja = [[], [], [], []]
-        self.zvanje_over = [False, False, False, False]
+        self.zvanje_over = [[False, False] for _ in range(4)]
 
         self.points = [0, 0]
         self.stihovi = [[], [], [], []]
@@ -118,7 +118,7 @@ class Bela:
         random.shuffle(self.deck)
 
     def deal_cards(self) -> None:
-        for i in range(32):  # TODO: REPLACE WITH '32):'
+        for i in range(32):
             if i < 24:
                 self.cards[i % 4].netalon.append(self.deck.pop())
             else:
@@ -222,6 +222,39 @@ class Bela:
         elif card[0] == "kec":
             return 11
 
+    def get_zvanje_card_value(self, card: Tuple[str, str]) -> int:
+        return ["7", "8", "9", "cener", "unter", "baba", "kralj", "kec"].index(card[0])
+
+    def calculate_zvanja(self) -> None:
+        # TODO: u ovoj funkciji sigurno nes ne valja jer moj mozak premali za ovakvu kompliciranost pa popravi to
+        zvanja_values = [
+            [self.get_zvanje_value(zvanje) for zvanje in self.zvanja[i]]
+            for i in range(4)
+        ]
+
+        mx_zvanje = (0, "s")
+        mx_idx = []
+        for i in range(4):
+            for zvanje in zvanja_values[i]:
+                if zvanje[0] > mx_zvanje[0] or (zvanje[0] == mx_zvanje[0] and mx_zvanje[1] == "s" and zvanje[1] == "v"):
+                    mx_idx.clear()
+                    mx_idx.append(i)
+                    mx_zvanje = zvanje
+                elif zvanje[0] == mx_zvanje[0] and zvanje[1] == mx_zvanje[1]:
+                    mx_idx.append(i)
+
+        mn = 4
+        mn_idx = 0
+        for idx in mx_idx:
+            rel_idx = idx - self.diler
+            if rel_idx <= 0:
+                rel_idx = 4 - rel_idx
+            if rel_idx < mn:
+                mn = rel_idx
+                mn_idx = idx
+
+        zvanja_winner = (1, 3) if mn_idx % 2 else (0, 2)
+
     def swap_cards_for_player(self, id_: int, cards: Tuple) -> None:
         c1, c2 = cards
         self.cards[id_].sve[c1], self.cards[id_].sve[c2] = self.cards[id_].sve[c2], self.cards[id_].sve[c1]
@@ -250,6 +283,7 @@ class Bela:
         self.cards[id_].sve = list_sorted
 
     def add_zvanja(self, cards: list, id_: int) -> None:
+        cards.sort(key=lambda c: self.get_zvanje_card_value(c))
         values = ["7", "8", "9", "cener", "unter", "baba", "kralj", "kec"]
         l = [[]]
         z = 0
@@ -342,7 +376,7 @@ class Bela:
         self.dalje = [False] * 4
 
         self.zvanja = [[], [], [], []]
-        self.zvanje_over = [False] * 4
+        self.zvanje_over = [[False, False] for _ in range(4)]
 
         self.points = [0, 0]
         self.stihovi = [[], [], [], []]
@@ -375,6 +409,25 @@ class Bela:
         else:
             self.next_turn()
 
+    def get_zvanje_value(self, zvanje: list[Tuple[str, str]]) -> Tuple[int, str]:
+        if len(zvanje) == 4 and zvanje[0][0] == zvanje[1][0]:
+            v = zvanje[0][0]
+            if v == "unter":
+                return 200, "v"
+            elif v == "9":
+                return 150, "v"
+            elif v not in ("7", "8"):
+                return 100, "v"
+        length = len(zvanje)
+        if length == 3:
+            return 20, "s"
+        if length == 4:
+            return 50, "s"
+        if length == 8:
+            return self.max_points, "belot"
+        if length >= 5:
+            return 100, "s"
+
     def get_final_game_score(self) -> Tuple[int, int]:
         return sum(map(lambda x: x[0], self.games)), sum(map(lambda x: x[1], self.games))
 
@@ -386,6 +439,13 @@ class Bela:
 
     def get_adut(self) -> Optional[str]:
         return self.adut
+
+    def get_zvanje_state(self) -> int:
+        if all(map(lambda x: x[1], self.zvanje_over)):
+            return 2
+        if all(map(lambda x: x[0], self.zvanje_over)):
+            return 1
+        return 0
 
     def get_current_game_state(self) -> GameState:
         return self.current_state

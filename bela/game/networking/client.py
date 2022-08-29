@@ -126,7 +126,8 @@ class Client:
 
         def on_nema_zvanja_btn_click(cls, x, y):
             cls.zvanja_dalje = True
-            cls.data = cls.network.send(Commands.ZVANJE_GOTOVO)
+            cls.data = cls.network.send(Commands.new(Commands.ZVANJE, []))
+            cls.recheck_zvanja()
 
         def on_ima_zvanja_btn_click(cls, x, y):
             cards = []
@@ -136,7 +137,9 @@ class Client:
             cls.data = cls.network.send(Commands.new(Commands.ZVANJE, cards))
             if cls.game.zvanja[cls.__player]:
                 cls.called_zvanje = True
-                cls.recheck_zvanja()
+            else:
+                cls.zvanja_dalje = True
+            cls.recheck_zvanja()
 
         # Timers
 
@@ -296,6 +299,8 @@ class Client:
         if not self.game.current_game_over:
             self.activated_game_over = False
 
+        self.sync_inventory()
+
         self.update_score()
 
         self.update_cards()
@@ -319,8 +324,12 @@ class Client:
         if self.game.get_current_game_state() is GameState.ZVANJA and len(self.inventory) in (0, 6):
             self.calculate_card_positions(self.get_cards().sve)
 
-        if self.game.get_current_game_state() is GameState.ZVANJA and not self.zvanja_dalje and not self.called_zvanje:
-            self.update_zvanja()
+        if self.game.get_current_game_state() is GameState.ZVANJA:
+            if not self.zvanja_dalje and not self.called_zvanje:
+                self.update_zvanja()
+            elif self.game.get_zvanje_state() == 1:
+                self.update_game_zvanje()
+            print(self.game.zvanja)
 
     def update_score(self) -> None:
         if self.event_handler.scrolls["up"]:
@@ -343,6 +352,9 @@ class Client:
             if self.event_handler.presses["right"] and card.rect.collidepoint(self.event_handler.get_pos()):
                 self.selected_cards[len(self.inventory) - i - 1] = not self.selected_cards[len(self.inventory) - i - 1]
                 break
+
+    def update_game_zvanje(self) -> None:
+        pass
 
     def update_menu(self) -> None:
         self.play_btn.update(self.event_handler)
@@ -852,6 +864,20 @@ class Client:
                                                                         ))
             )
         self.inventory_calculated = True
+
+    def sync_inventory(self) -> None:
+        org_cards = self.get_cards().sve
+        if self.game.get_current_game_state() is GameState.ZVANJE_ADUTA:
+            org_cards = self.get_cards().netalon
+
+        inv_cards = list(map(lambda x: x.card, self.inventory))
+
+        diff = list(set(inv_cards).difference(set(org_cards)))
+        diff2 = list(set(org_cards).difference(set(inv_cards)))
+
+        for i, inv_card in enumerate(self.inventory):
+            if inv_card.card in diff:
+                self.inventory[i].card = diff2.pop()
 
     def recheck_zvanja(self) -> None:
         for i, v in enumerate(self.selected_cards):

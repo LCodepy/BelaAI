@@ -65,6 +65,7 @@ class ServerControllerSS:
                 connection.sendall(pickle.dumps(response))
             except socket.error:
                 Log.e("SERVER", "Server controller closed!")
+                break
 
 
 class ServerControllerCS:

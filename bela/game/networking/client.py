@@ -534,7 +534,7 @@ class Client:
             pygame.draw.rect(surf, (0, 0, b), [-2, -2, self.info_canvas.get_width() - 60 + i, 300 + i], 1, 4)
         self.info_canvas.blit(surf, (32, y - 18))
 
-        games = self.game.games
+        games = self.game.games[:]
         if not games:
             games.append(["???", "???"])
 
@@ -713,8 +713,11 @@ class Client:
             x = self.inventory[i].x
             y = self.inventory[i].y
             alfa = self.inventory[i].angle
-            card = pygame.transform.rotate(self.assets.card_images[card], -82 - alfa)
-            card = pygame.transform.scale(card, (int(card.get_width() * 1.2), int(card.get_height() * 1.2)))
+            card = self.assets.card_images[card]
+            card = pygame.transform.scale(
+                card, (int(card.get_width() * 1.2), int(card.get_height() * 1.2))
+            )
+            card = pygame.transform.rotate(card, -82 - alfa)
             self.canvas.blit(card, (x - card.get_width() // 2, y - card.get_height() // 2))
 
     def render_cards_on_table(self) -> None:
@@ -852,9 +855,7 @@ class Client:
 
     def recheck_zvanja(self) -> None:
         for i, v in enumerate(self.selected_cards):
-            for zvanje in self.game.zvanja[self.__player]:
-                if v and self.inventory[i].card not in zvanje:
-                    self.selected_cards[i] = False
+            self.selected_cards[i] = False
 
     def calculate_card_removal_paths_p1(self, gap: int = 8, interval: float = 0.5) -> None:
         if self.cards_on_table_positions_p1:

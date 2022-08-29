@@ -106,7 +106,7 @@ class Bela:
 
         self.current_game_over = False
 
-        self.games = [[random.randint(1, 100), random.randint(1, 100)] for i in range(14)]
+        self.games = []
 
     def create_cards(self) -> None:
         types = ["herc", "pik", "karo", "tref"]
@@ -118,7 +118,7 @@ class Bela:
         random.shuffle(self.deck)
 
     def deal_cards(self) -> None:
-        for i in range(4):  # TODO: REPLACE WITH '32):'
+        for i in range(32):  # TODO: REPLACE WITH '32):'
             if i < 24:
                 self.cards[i % 4].netalon.append(self.deck.pop())
             else:

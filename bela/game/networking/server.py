@@ -3,6 +3,7 @@ import socket
 from _thread import start_new_thread
 
 from bela.game.networking.commands import Commands
+from server_controller import ServerControllerSS
 from ..main.bela import Bela, GameState
 from ..utils.log import Log
 
@@ -10,6 +11,7 @@ from ..utils.log import Log
 class Server:
 
     def __init__(self):
+        Log.clear()
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((socket.gethostname(), 22222))
@@ -23,6 +25,17 @@ class Server:
         self.current_game_id = 0
 
         Log.i("SERVER", f"Started on port {22222}")
+
+        self.server_controller = None
+        self.server_controller_activated = Log.input("SERVER", f"Activate server control (Y/N): ").upper() == "Y"
+        if self.server_controller_activated:
+            self.server_controller_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.server_controller_socket.bind((socket.gethostname(), 22223))
+            self.server_controller_socket.listen()
+            self.server_controller = ServerControllerSS(self)
+
+            start_new_thread(self.server_controller.run, ())
+            Log.i("SERVER", "Activating server control...")
 
         while True:
 
@@ -92,13 +105,12 @@ class Server:
 
                 if Commands.equals(data, Commands.ZVANJE):
                     game.add_zvanja(data.data[0], player_id)
-                    game.zvanje_over[player_id] = True
-                    if all(game.zvanje_over):
-                        game.next_game_state()
+                    game.zvanje_over[player_id][0] = True
 
                 if Commands.equals(data, Commands.ZVANJE_GOTOVO):
-                    game.zvanje_over[player_id] = True
-                    if all(game.zvanje_over):
+                    game.zvanje_over[player_id][0] = True
+                    game.zvanje_over[player_id][1] = True
+                    if all(map(lambda x: x[1], game.zvanje_over)):  # TODO: 1st var in zvanje over is when a player has called and 2nd is when the game state zvanje is to be finished
                         game.next_game_state()
 
                 if Commands.equals(data, Commands.END_TURN):

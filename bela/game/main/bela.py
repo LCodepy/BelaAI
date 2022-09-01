@@ -95,6 +95,7 @@ class Bela:
 
         self.zvanja = [[], [], [], []]
         self.zvanje_over = [[False, False] for _ in range(4)]
+        self.final_zvanja = [[], [], [], []]
 
         self.points = [0, 0]
         self.stihovi = [[], [], [], []]
@@ -222,9 +223,6 @@ class Bela:
         elif card[0] == "kec":
             return 11
 
-    def get_zvanje_card_value(self, card: Tuple[str, str]) -> int:
-        return ["7", "8", "9", "cener", "unter", "baba", "kralj", "kec"].index(card[0])
-
     def calculate_zvanja(self) -> None:
         # TODO: u ovoj funkciji sigurno nes ne valja jer moj mozak premali za ovakvu kompliciranost pa popravi to
         zvanja_values = [
@@ -255,6 +253,9 @@ class Bela:
 
         zvanja_winner = (1, 3) if mn_idx % 2 else (0, 2)
 
+        self.final_zvanja[zvanja_winner[0]] = zvanja_values[zvanja_winner[0]]
+        self.final_zvanja[zvanja_winner[1]] = zvanja_values[zvanja_winner[1]]
+
     def swap_cards_for_player(self, id_: int, cards: Tuple) -> None:
         c1, c2 = cards
         self.cards[id_].sve[c1], self.cards[id_].sve[c2] = self.cards[id_].sve[c2], self.cards[id_].sve[c1]
@@ -283,41 +284,51 @@ class Bela:
         self.cards[id_].sve = list_sorted
 
     def add_zvanja(self, cards: list, id_: int) -> None:
-        cards.sort(key=lambda c: self.get_zvanje_card_value(c))
-        values = ["7", "8", "9", "cener", "unter", "baba", "kralj", "kec"]
-        l = [[]]
-        z = 0
-        index = 0
-        types = []
-        number_of_types = []
+        types = ["karo", "herc", "tref", "pik"]
+        random.shuffle(types)
 
+        card_count = {}
+        card_types = {}
         for card in cards:
-            if card[0] not in types:
-                types.append(card[0])
-                number_of_types.append(0)
-            else:
-                number_of_types[types.index(card[0])] = number_of_types[types.index(card[0])] + 1
-                if number_of_types[types.index(card[0])] == 3:
-                    l[index].append((card[0], "tref"))
-                    l[index].append((card[0], "karo"))
-                    l[index].append((card[0], "herc"))
-                    l[index].append((card[0], "pik"))
-                    index += 1
-                    l.append([])
+            if card[0] not in card_count:
+                card_count[card[0]] = 0
+            if card[1] not in card_types:
+                card_types[card[1]] = []
+            card_count[card[0]] += 1
+            card_types[card[1]].append((card[0], self.get_zvanje_card_value(card)))
 
-        for y in range(len(cards[:-1])):
-            if values.index(cards[y][0]) + 1 == values.index(cards[y + 1][0]) and cards[y][1] == cards[y + 1][1]:
-                if z == 0:
-                    l[index].append((cards[y][0], cards[y][1]))
-                l[index].append(cards[y + 1])
-                z += 1
-            else:
-                z = 0
-                index += 1
-                l.append([])
+        zvanja4 = [
+            [(card, type_) for type_ in types]
+            for card, v in card_count.items()
+            if v == 4 and card not in ("7", "8")
+        ]
 
-        zvanje = [i for i in l if len(i) > 2]
-        self.zvanja[id_] = zvanje
+        all_zvanja_skala = []
+
+        for type_, values in card_types.items():
+            values.sort(key=lambda x: self.get_zvanje_card_value(x))
+            skala = [0] * 8
+
+            for value in values:
+                skala[value[1]] = value[0]
+
+            zvanje_skala = [[], []]
+            idx = 0
+            for i in range(8):
+                if skala[i] and (not zvanje_skala[idx] or skala[i - 1]):
+                    zvanje_skala[idx].append((skala[i], type_))
+                elif len(zvanje_skala[idx]) < 3:
+                    zvanje_skala[idx].clear()
+                else:
+                    idx = 1
+            if len(zvanje_skala[0]) < 3:
+                zvanje_skala.pop(0)
+            if len(zvanje_skala[-1]) < 3:
+                zvanje_skala.pop()
+
+            all_zvanja_skala += zvanje_skala
+
+        self.zvanja[id_] = zvanja4 + all_zvanja_skala
 
     def next_turn(self) -> None:
         self.player_turn += 1
@@ -377,6 +388,7 @@ class Bela:
 
         self.zvanja = [[], [], [], []]
         self.zvanje_over = [[False, False] for _ in range(4)]
+        self.final_zvanja = [[], [], [], []]
 
         self.points = [0, 0]
         self.stihovi = [[], [], [], []]
@@ -427,6 +439,9 @@ class Bela:
             return self.max_points, "belot"
         if length >= 5:
             return 100, "s"
+
+    def get_zvanje_card_value(self, card: Tuple[str, str]) -> int:
+        return ["7", "8", "9", "cener", "unter", "baba", "kralj", "kec"].index(card[0])
 
     def get_final_game_score(self) -> Tuple[int, int]:
         return sum(map(lambda x: x[0], self.games)), sum(map(lambda x: x[1], self.games))

@@ -1,5 +1,6 @@
 import copy
 import math
+import random
 import time
 from typing import Any
 
@@ -86,6 +87,8 @@ class Client:
         self.activated_game_over = False
         self.end_game = False
         self.score_y_offset = 15
+        self.zvanja_card_positions = [(280, 330), (530, 330), (530, 270), (280, 270)]
+        self.zvanja_card_offsets = {}
 
         self.last_frame_cards_on_table = []
 
@@ -329,7 +332,6 @@ class Client:
                 self.update_zvanja()
             elif self.game.get_zvanje_state() == 1:
                 self.update_game_zvanje()
-            print(self.game.zvanja)
 
     def update_score(self) -> None:
         if self.event_handler.scrolls["up"]:
@@ -598,8 +600,11 @@ class Client:
         ):
             self.render_calling_adut()
 
-        if self.game.get_current_game_state() is GameState.ZVANJA and not self.zvanja_dalje and not self.called_zvanje:
-            self.render_zvanja()
+        if self.game.get_current_game_state() is GameState.ZVANJA:
+            if not self.zvanja_dalje and not self.called_zvanje:
+                self.render_zvanja()
+            elif self.game.get_zvanje_state() == 1:
+                self.render_game_zvanje()
 
     def render_calling_adut(self) -> None:
         surf = pygame.Surface(self.display.get_size(), pygame.SRCALPHA)
@@ -622,6 +627,33 @@ class Client:
         self.zvanja_label.render()
         self.ima_zvanja_button.render()
         self.nema_zvanja_button.render()
+
+    def render_game_zvanje(self, zvanja_gap: int = 20, card_width: int = 30) -> None:
+        for player in range(4):
+            if not self.game.final_zvanja[player]:
+                continue
+            rel_player = player
+            if self.__player > 1:
+                rel_player += 2
+                if rel_player > 3:
+                    rel_player -= 4
+
+            zvanja = self.game.zvanja[player]
+            zvanja_render_length = sum(len(z) * card_width for z in zvanja) + (len(zvanja) - 1) * zvanja_gap
+            x, y = self.zvanja_card_positions[rel_player]
+            x -= zvanja_render_length // 2
+
+            for zvanje in zvanja:
+                for card in zvanje:
+                    card_img = self.assets.card_images[card]
+                    if card not in self.zvanja_card_offsets:
+                        self.zvanja_card_offsets[card] = random.randint(-4, 4), random.randint(-4, 4)
+                    x_off, y_off = self.zvanja_card_offsets[card]
+                    self.canvas.blit(
+                        card_img, (x + x_off, y - card_img.get_height() // 2 + y_off)
+                    )
+                    x += card_width
+                x += zvanja_gap
 
     def render_menu(self) -> None:
         self.title.render()

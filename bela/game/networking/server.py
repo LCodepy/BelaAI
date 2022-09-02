@@ -112,7 +112,7 @@ class Server:
                 if Commands.equals(data, Commands.ZVANJE_GOTOVO):
                     game.zvanje_over[player_id][0] = True
                     game.zvanje_over[player_id][1] = True
-                    if all(map(lambda x: x[1], game.zvanje_over)):
+                    if all(map(lambda x: x[1], game.zvanje_over)) and game.get_current_game_state() is GameState.ZVANJA:
                         game.next_game_state()
 
                 if Commands.equals(data, Commands.END_TURN):

@@ -89,6 +89,7 @@ class Client:
         self.score_y_offset = 15
         self.zvanja_card_positions = [(280, 330), (530, 330), (530, 270), (280, 270)]
         self.zvanja_card_offsets = {}
+        self.zvanja_timer_created = False
 
         self.last_frame_cards_on_table = []
 
@@ -331,6 +332,9 @@ class Client:
             if not self.zvanja_dalje and not self.called_zvanje:
                 self.update_zvanja()
             elif self.game.get_zvanje_state() == 1:
+                if not self.zvanja_timer_created:
+                    self.timer_handler.add_timer_during_exec("SHOW_ZVANJA", 4, self.finish_zvanja, self)
+                    self.zvanja_timer_created = True
                 self.update_game_zvanje()
 
     def update_score(self) -> None:
@@ -647,7 +651,7 @@ class Client:
                 for card in zvanje:
                     card_img = self.assets.card_images[card]
                     if card not in self.zvanja_card_offsets:
-                        self.zvanja_card_offsets[card] = random.randint(-4, 4), random.randint(-4, 4)
+                        self.zvanja_card_offsets[card] = random.randint(-2, 2), random.randint(-2, 2)
                     x_off, y_off = self.zvanja_card_offsets[card]
                     self.canvas.blit(
                         card_img, (x + x_off, y - card_img.get_height() // 2 + y_off)
@@ -985,6 +989,9 @@ class Client:
             path.append([interval, new_x, new_y, new_angle])
 
             self.cards_on_table_positions_p2.append(path)
+
+    def finish_zvanja(self, _) -> None:
+        self.data = self.network.send(Commands.ZVANJE_GOTOVO)
 
     # Timed action functions
 

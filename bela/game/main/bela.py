@@ -256,6 +256,8 @@ class Bela:
         self.final_zvanja[zvanja_winner[0]] = zvanja_values[zvanja_winner[0]]
         self.final_zvanja[zvanja_winner[1]] = zvanja_values[zvanja_winner[1]]
 
+        self.points[mn_idx % 2] = sum(map(lambda x: x[0], zvanja_values[zvanja_winner[0]])) + sum(map(lambda x: x[0], zvanja_values[zvanja_winner[1]]))
+
     def swap_cards_for_player(self, id_: int, cards: Tuple) -> None:
         c1, c2 = cards
         self.cards[id_].sve[c1], self.cards[id_].sve[c2] = self.cards[id_].sve[c2], self.cards[id_].sve[c1]

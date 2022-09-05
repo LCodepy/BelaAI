@@ -2,6 +2,7 @@ import copy
 import math
 import random
 import time
+from itertools import chain
 from typing import Any
 
 import pygame
@@ -60,7 +61,6 @@ class Client:
         self.clock = pygame.time.Clock()
         self.__fps = 60
 
-        self.pressed_point = None
         self.data: dict[str, Any] = {"game": None}
 
         self.label_dots = 0
@@ -68,28 +68,38 @@ class Client:
         self.player_positions = [(270, 500), (530, 500), (530, 100), (270, 100)]
         self.card_positions = [(270, 500), (530, 500)]
         self.talon_card_positions = [(280, 330), (530, 330)]
+        self.gained_stihovi_positions = [(200, 350), (600, 350), (600, 250), (200, 250)]
+        self.gained_stihovi_angles = [-45, 45, -45, 45]
+        self.cards_on_table_positions_p1 = []
+        self.cards_on_table_positions_p2 = []
+        self.zvanja_card_positions = [(280, 330), (530, 330), (530, 270), (280, 270)]
+        self.zvanja_card_offsets = {}
+        self.card_area = pygame.Rect(350, 240, 100, 80)
+
         self.inventory = []
         self.inventory_calculated = False
+
+        self.cards_on_table = []
         self.moving_card = None
         self.selected_cards = [False for _ in range(8)]
+        self.selected_cards_for_bela = [None, None]
+
+        self.adut_dalje = False
         self.zvanja_dalje = False
         self.called_zvanje = False
-        self.card_area = pygame.Rect(350, 240, 100, 80)
+        self.zvanja_timer_created = False
+        self.calling_bela = False
+
         self.switched_cards = []
         self.switched_cards_marker_color = (0, 255, 0, 0)
         self.placed_card_marker_color = (0, 0, 255, 0)
-        self.cards_on_table = []
-        self.cards_on_table_positions_p1 = []
-        self.cards_on_table_positions_p2 = []
-        self.gained_stihovi_positions = [(200, 350), (600, 350), (600, 250), (200, 250)]
-        self.gained_stihovi_angles = [-45, 45, -45, 45]
+        self.called_bela_marker_color = (255, 0, 0, 0)
+
         self.activated_turn_end = False
         self.activated_game_over = False
         self.end_game = False
+
         self.score_y_offset = 15
-        self.zvanja_card_positions = [(280, 330), (530, 330), (530, 270), (280, 270)]
-        self.zvanja_card_offsets = {}
-        self.zvanja_timer_created = False
 
         self.last_frame_cards_on_table = []
 
@@ -127,6 +137,7 @@ class Client:
             if cls.game.get_current_game_state() == GameState.ZVANJE_ADUTA:
                 cls.data = cls.network.send(Commands.DALJE)
                 cls.calculate_card_positions(cls.get_cards().sve)
+                cls.adut_dalje = True
 
         def on_nema_zvanja_btn_click(cls, x, y):
             cls.zvanja_dalje = True
@@ -333,15 +344,21 @@ class Client:
                 self.update_zvanja()
             elif self.game.get_zvanje_state() == 1:
                 if not self.zvanja_timer_created:
-                    self.timer_handler.add_timer_during_exec("SHOW_ZVANJA", 4, self.finish_zvanja, self)
+                    countdown = 4
+                    if not any(self.game.zvanja):
+                        countdown = 0
+                    self.timer_handler.add_timer_during_exec("SHOW_ZVANJA", countdown, self.finish_zvanja, self)
                     self.zvanja_timer_created = True
                 self.update_game_zvanje()
 
     def update_score(self) -> None:
+        if not pygame.Rect(35, 210, self.info_canvas.get_width() - 70, 240).collidepoint(self.event_handler.get_pos()):
+            return
+
         if self.event_handler.scrolls["up"]:
             self.score_y_offset = min(self.score_y_offset + 10, 15)
         elif self.event_handler.scrolls["down"]:
-            self.score_y_offset = max(self.score_y_offset - 10, 15 - (len(self.game.games) - 5) * 25)
+            self.score_y_offset = max(self.score_y_offset - 10, 15 - (max(len(self.game.games), 5) - 5) * 25)
 
     def update_calling_adut(self) -> None:
         for button in self.call_adut_buttons:
@@ -378,8 +395,8 @@ class Client:
             self.activated_turn_end = True
 
         if (
-            len(self.game.cards_on_table) != len(self.last_frame_cards_on_table)
-            and self.game.cards_on_table
+                len(self.game.cards_on_table) != len(self.last_frame_cards_on_table)
+                and self.game.cards_on_table
         ):
             self.timed_actions[0]["DISPLAY_CARD_PLAYED"] = [True, time.time(), self.game.cards_on_table[-1]]
 
@@ -394,12 +411,43 @@ class Client:
 
     def update_cards_in_inventory(self) -> None:
         for i, card in enumerate(reversed(self.inventory)):
+            if (
+                    self.game.get_current_game_state() is GameState.ZVANJA and
+                    self.game.get_zvanje_state() == 1 and
+                    card.card in list(chain(*self.game.get_player_zvanja(self.__player)))
+            ):
+                continue
+
             i = len(self.inventory) - i - 1
+
+            if (
+                    self.event_handler.presses["right"] and
+                    card.rect.collidepoint(self.event_handler.get_pos()) and
+                    self.game.get_current_game_state() is GameState.IGRA and
+                    self.on_turn() and self.moving_card is None and
+                    card.card in [("baba", self.game.get_adut()), ("kralj", self.game.get_adut())] and
+                    self.game.player_has_bela(self.__player)
+            ):
+                idx = 0
+                for x, c in enumerate(self.inventory):
+                    if c.card in (("kralj", self.game.get_adut()), ("baba", self.game.get_adut())):
+                        self.selected_cards_for_bela[idx] = x
+                        idx = 1
+                if None in self.selected_cards_for_bela:
+                    self.selected_cards_for_bela = [None, None]
+                else:
+                    self.timed_actions[0]["CALL_BELA"] = [True, time.time()]
+                    self.calling_bela = True
+                break
+
             if (
                     self.event_handler.held["left"] and
                     card.rect.collidepoint(self.event_handler.get_pos()) and
                     self.moving_card is None and
-                    ("MOVE_BACK_CARD" not in self.timed_actions[0] or not self.timed_actions[0]["MOVE_BACK_CARD"][0])
+                    ("MOVE_BACK_CARD" not in self.timed_actions[0] or
+                     not self.timed_actions[0]["MOVE_BACK_CARD"][0]) and
+                    ("CALL_BELA" not in self.timed_actions[0] or
+                     not self.timed_actions[0]["CALL_BELA"][0])
             ):
                 self.moving_card = i
 
@@ -411,6 +459,10 @@ class Client:
         self.data = self.network.recv_only()
         if card_passed:
             self.inventory.pop(self.moving_card)
+            if self.calling_bela and None not in self.selected_cards_for_bela:
+                self.data = self.network.send(Commands.CALLED_BELA)
+                self.calling_bela = False
+            self.selected_cards_for_bela = [None, None]
             if self.game.cards_on_table:
                 self.timed_actions[0]["DISPLAY_CARD_PLAYED"] = [True, time.time(), self.game.cards_on_table[-1]]
         else:
@@ -421,8 +473,14 @@ class Client:
     def handle_card_swapping(self) -> None:
         for i, card in enumerate(self.inventory):
             if (
-                card.collision_rect().collidepoint(self.inventory[self.moving_card].get_pos()) and
-                i != self.moving_card
+                    self.game.get_current_game_state() is GameState.ZVANJA and
+                    self.game.get_zvanje_state() == 1 and
+                    card.card in list(chain(*self.game.get_player_zvanja(self.__player)))
+            ):
+                continue
+            if (
+                    card.collision_rect().collidepoint(self.inventory[self.moving_card].get_pos()) and
+                    i != self.moving_card
             ):
                 self.inventory[self.moving_card].move_back()
                 c1 = self.game.get_card_index(self.__player, self.inventory[self.moving_card].card)
@@ -463,6 +521,12 @@ class Client:
                     self.placed_card_unmark(t - args[1])
                 elif t - args[1] > 0.8:
                     to_remove.append("DISPLAY_CARD_PLAYED")
+
+            if action == "CALL_BELA" and args[0]:
+                if t - args[1] < 1:
+                    self.called_bela_unmark(t - args[1])
+                elif t - args[1] > 1:
+                    to_remove.append("CALL_BELA")
 
             if action == "TURN_ENDED" and args[0]:
                 if t - args[1] < 2:
@@ -715,9 +779,18 @@ class Client:
             card = cards[i]
             x = self.inventory[i].x
             y = self.inventory[i].y
-            alfa = self.inventory[i].angle
-            card = pygame.transform.rotate(self.assets.card_images[card], -82 - alfa)
-            self.render_switched_card_marked(card, x, y)
+            alpha = self.inventory[i].angle
+            card = pygame.transform.rotate(self.assets.card_images[card], -82 - alpha)
+            self.render_card_outline(card, x, y, self.switched_cards_marker_color)
+
+        for i in self.selected_cards_for_bela:
+            if i is not None:
+                card = cards[i]
+                x = self.inventory[i].x
+                y = self.inventory[i].y
+                alpha = self.inventory[i].angle
+                card = pygame.transform.rotate(self.assets.card_images[card], -82 - alpha)
+                self.render_card_outline(card, x, y, self.called_bela_marker_color)
 
         self.render_cards_in_hand(cards)
 
@@ -744,28 +817,46 @@ class Client:
         for i, card in enumerate(cards):
             if i == self.moving_card or self.selected_cards[i]:
                 continue
+            if (
+                    self.game.get_current_game_state() is GameState.ZVANJA and
+                    self.game.get_zvanje_state() == 1 and
+                    card in list(chain(*self.game.get_player_zvanja(self.__player)))
+            ):
+                continue
             x = self.inventory[i].x
             y = self.inventory[i].y
-            alfa = self.inventory[i].angle
-            card = pygame.transform.rotate(self.assets.card_images[card], -82 - alfa)
+            alpha = self.inventory[i].angle
+            card = pygame.transform.rotate(self.assets.card_images[card], -82 - alpha)
             if i in self.switched_cards:
                 if abs(self.switched_cards[0] - self.switched_cards[1]) > 1:
-                    self.render_switched_card_marked(card, x, y)
+                    self.render_card_outline(card, x, y, self.switched_cards_marker_color)
                 elif i == min(self.switched_cards):
-                    self.render_switched_card_marked(card, x, y)
+                    self.render_card_outline(card, x, y, self.switched_cards_marker_color)
+
+            if i in self.selected_cards_for_bela:
+                if abs(self.selected_cards_for_bela[0] - self.selected_cards_for_bela[1]) > 1:
+                    self.render_card_outline(card, x, y, self.called_bela_marker_color)
+                elif i == min(self.selected_cards_for_bela):
+                    self.render_card_outline(card, x, y, self.called_bela_marker_color)
             self.canvas.blit(card, (x - card.get_width() // 2, y - card.get_height() // 2))
 
         for i, card in enumerate(cards):
             if i == self.moving_card or not self.selected_cards[i]:
                 continue
+            if (
+                    self.game.get_current_game_state() is GameState.ZVANJA and
+                    self.game.get_zvanje_state() == 1 and
+                    card in list(chain(*self.game.get_player_zvanja(self.__player)))
+            ):
+                continue
             x = self.inventory[i].x
             y = self.inventory[i].y
-            alfa = self.inventory[i].angle
+            alpha = self.inventory[i].angle
             card = self.assets.card_images[card]
             card = pygame.transform.scale(
                 card, (int(card.get_width() * 1.2), int(card.get_height() * 1.2))
             )
-            card = pygame.transform.rotate(card, -82 - alfa)
+            card = pygame.transform.rotate(card, -82 - alpha)
             self.canvas.blit(card, (x - card.get_width() // 2, y - card.get_height() // 2))
 
     def render_cards_on_table(self) -> None:
@@ -782,20 +873,19 @@ class Client:
                 continue
             card_img = pygame.transform.rotate(self.assets.card_images[card.card], -82 - card.angle)
             if (
-                "DISPLAY_CARD_PLAYED" in self.timed_actions[0] and
-                card.card == self.timed_actions[0]["DISPLAY_CARD_PLAYED"][2].card
+                    "DISPLAY_CARD_PLAYED" in self.timed_actions[0] and
+                    card.card == self.timed_actions[0]["DISPLAY_CARD_PLAYED"][2].card
             ):
                 action = self.timed_actions[0]["DISPLAY_CARD_PLAYED"]
                 current_time = time.time() - action[1]
                 if action[0] and current_time < 0.8:
-
                     rendering.render_outline(
                         card_img, self.canvas, self.placed_card_marker_color, card.x, card.y, 3, 3, 2
                     )
             self.canvas.blit(card_img, (card.x - card_img.get_width() // 2, card.y - card_img.get_height() // 2))
 
-    def render_switched_card_marked(self, card: pygame.Surface, x: int, y: int) -> None:
-        rendering.render_outline(card, self.canvas, self.switched_cards_marker_color, x, y, 3, 3, 2)
+    def render_card_outline(self, card: pygame.Surface, x: int, y: int, color: Tuple[int, int, int, int]) -> None:
+        rendering.render_outline(card, self.canvas, color, x, y, 3, 3, 2)
 
     def render_player_cards(self) -> None:
         self.render_players_cards_in_talon()
@@ -829,14 +919,24 @@ class Client:
             if rot:
                 y0 -= 400
 
+            # p -= self.__player
+            # if p <= 0:
+            #    p = 4 - p
+
             cards = self.game.get_netalon(p) if self.game.get_current_game_state() is GameState.ZVANJE_ADUTA else \
                 self.game.cards[p].sve
-            alfa = (98 if rot else -82) - len(cards) * k // 2
-            for _ in cards:
-                x = int(math.cos(math.radians(alfa)) * r)
-                y = int(math.sin(math.radians(alfa)) * r)
-                alfa += k
-                card = pygame.transform.rotate(self.assets.card_back, (98 if rot else -82) - alfa)
+            alpha = (98 if rot else -82) - len(cards) * k // 2
+            for card in cards:
+                if (
+                        self.game.get_current_game_state() is GameState.ZVANJA and
+                        self.game.get_zvanje_state() == 1 and
+                        card in list(chain(*self.game.get_player_zvanja(p)))
+                ):
+                    continue
+                x = int(math.cos(math.radians(alpha)) * r)
+                y = int(math.sin(math.radians(alpha)) * r)
+                alpha += k
+                card = pygame.transform.rotate(self.assets.card_back, (98 if rot else -82) - alpha)
                 self.canvas.blit(card, (x0 + x - card.get_width() // 2, y0 + y - card.get_height() // 2))
 
     def render_timed_actions(self) -> None:
@@ -864,19 +964,29 @@ class Client:
     def end_current_game(self) -> None:
         self.data = self.network.send(Commands.END_GAME)
 
-        self.inventory = []
-        self.inventory_calculated = False
-        self.moving_card = None
-        self.selected_cards = [False for _ in range(8)]
-        self.zvanja_dalje = False
-        self.called_zvanje = False
-        self.switched_cards = []
-        self.cards_on_table = []
         self.cards_on_table_positions_p1 = []
         self.cards_on_table_positions_p2 = []
+
+        self.inventory = []
+        self.inventory_calculated = False
+
+        self.cards_on_table = []
+        self.switched_cards = []
+        self.moving_card = None
+        self.selected_cards = [False for _ in range(8)]
+        self.selected_cards_for_bela = [None, None]
+
+        self.adut_dalje = False
+        self.zvanja_dalje = False
+        self.called_zvanje = False
+        self.zvanja_timer_created = False
+        self.calling_bela = False
+
         self.activated_turn_end = False
-        self.last_frame_cards_on_table = []
+        self.activated_game_over = False
         self.end_game = False
+
+        self.last_frame_cards_on_table = []
 
         self.sort_cards_button.reinit()
         self.nema_zvanja_button.reinit()
@@ -888,22 +998,23 @@ class Client:
     def calculate_card_positions(self, cards: list, r: int = 100, k: int = 15) -> None:
         self.inventory = []
         x0, y0 = self.card_positions[self.__player % 2]
-        alfa = -82 - len(cards) * k // 2
+        alpha = -82 - len(cards) * k // 2
         for card in cards:
-            x = math.cos(math.radians(alfa)) * r
-            y = math.sin(math.radians(alfa)) * r
-            alfa += k
+            x = math.cos(math.radians(alpha)) * r
+            y = math.sin(math.radians(alpha)) * r
+            alpha += k
             self.inventory.append(
-                Card(card, int(x0 + x), int(y0 + y), alfa, RotatingRect(int(x0 + x), int(y0 + y),
-                                                                        self.assets.card_width, self.assets.card_height,
-                                                                        100 - alfa
-                                                                        ))
+                Card(card, int(x0 + x), int(y0 + y), alpha, RotatingRect(int(x0 + x), int(y0 + y),
+                                                                         self.assets.card_width,
+                                                                         self.assets.card_height,
+                                                                         100 - alpha
+                                                                         ))
             )
         self.inventory_calculated = True
 
     def sync_inventory(self) -> None:
         org_cards = self.get_cards().sve
-        if self.game.get_current_game_state() is GameState.ZVANJE_ADUTA:
+        if self.game.get_current_game_state() is GameState.ZVANJE_ADUTA and not self.adut_dalje:
             org_cards = self.get_cards().netalon
 
         inv_cards = list(map(lambda x: x.card, self.inventory))
@@ -925,7 +1036,7 @@ class Client:
 
         for i, card in enumerate(self.cards_on_table):
             new_x = self.canvas.get_width() // 2 + i * (gap + self.assets.card_width) - \
-                                                        (gap * 3/2 + self.assets.card_width * 3/2)
+                    (gap * 3 / 2 + self.assets.card_width * 3 / 2)
             new_y = self.canvas.get_height() // 2
 
             dist_x = new_x - card.x
@@ -1049,13 +1160,18 @@ class Client:
 
     def switch_card_unmark(self, current_time: float) -> None:
         value = 0.5 - abs(current_time - 0.5)
-        alpha = value * 300
+        alpha = int(value * 300)
         self.switched_cards_marker_color = (0, 255, 0, max(min(255, alpha), 0))
 
     def placed_card_unmark(self, current_time: float) -> None:
         value = 0.4 - abs(current_time - 0.4)
-        alpha = value * 300
+        alpha = int(value * 300)
         self.placed_card_marker_color = (0, 0, 255, max(min(255, alpha), 0))
+
+    def called_bela_unmark(self, current_time: float) -> None:
+        value = 0.5 - abs(current_time - 0.5)
+        alpha = int(value * 300)
+        self.called_bela_marker_color = (255, 0, 0, max(min(255, alpha), 0))
 
     def move_removed_cards(self, current_time: float) -> None:
         if not self.cards_on_table_positions_p1:

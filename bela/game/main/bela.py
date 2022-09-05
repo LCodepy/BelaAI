@@ -106,6 +106,7 @@ class Bela:
         self.ready_to_end_game = [False] * 4
 
         self.current_game_over = False
+        self.ended_last_turn = False
 
         self.games = []
 
@@ -128,24 +129,29 @@ class Bela:
         for i in range(4):
             self.cards[i].sve = self.cards[i].talon + self.cards[i].netalon
 
+    def strongest_card(self, cards: list[Tuple[str, str]]) -> Tuple[str, str]:
+        data = [[card, self.get_card_value(card), card[1] == self.adut, cards[0][1] == card[1]] for card in cards]
+        return sorted(data, key=lambda c: c[1] + c[2] * 1000 + c[3] * 100, reverse=True)[0][0]
+
     def inspect_played_card(self, card: Tuple[str, str], id_: int) -> bool:
         if not any(self.cards_on_table):
             return True
 
-        last_card = self.cards_on_table[-1].card
         first_card = self.cards_on_table[0].card
+        strongest_card = self.strongest_card(list(map(lambda c: c.card, self.cards_on_table)))
 
         if card[1] != first_card[1]:
-            if self.player_has_color(first_card[1], id_):
+            if self.player_has_color(first_card[1], id_):  # played wrong color while having the right color
                 return False
-            if card[1] != self.adut and self.player_has_adut(id_):
+            if card[1] != self.adut and self.player_has_adut(id_):  # played wrong color while having adut
                 return False
-            if card[1] == self.adut and last_card == self.adut:
-                return not self.player_has_higher(last_card, id_)
+            if card[1] == self.adut and strongest_card[1] == self.adut and \
+                    self.is_card_greater(strongest_card, card):  # played either < or > then strongest_card
+                return not self.player_has_higher(strongest_card, id_)
+        elif self.is_card_greater(card, strongest_card):  # played the card stronger then the strongest_card
             return True
         else:
-            if self.is_card_greater(last_card, card) and last_card[1] == card[1]:
-                return not self.player_has_higher(last_card, id_)
+            return not self.player_has_higher(strongest_card, id_)  # player either has or doesn't have bigger card
         return True
 
     def remove_cards_from_table(self) -> [int, int]:
@@ -181,6 +187,8 @@ class Bela:
         return any(card[1] == color for card in self.cards[id_].sve)
 
     def is_card_greater(self, c1: Tuple[str, str], c2: Tuple[str, str]) -> bool:
+        if c1[1] != c2[1]:
+            return True
         return self.get_card_value(c1) > self.get_card_value(c2)
 
     def get_card_value(self, card: Tuple[str, str]) -> int:
@@ -351,9 +359,11 @@ class Bela:
             self.turn_just_ended = False
             self.ready_to_end_turn = [False] * 4
 
-            if not self.cards[0].sve:
+            if not self.cards[0].sve and not self.ended_last_turn:
                 self.current_game_over = True
+                self.points[self.current_turn_winner % 2] += 10
                 self.set_turn(-1)
+                self.ended_last_turn = True
 
     def end_game(self, id_: int) -> None:
         self.ready_to_end_game[id_] = True
@@ -401,6 +411,7 @@ class Bela:
         self.ready_to_end_game = [False] * 4
 
         self.current_game_over = False
+        self.ended_last_turn = False
 
     def next_game_state(self) -> None:
         if self.current_state is GameState.ZVANJE_ADUTA:
@@ -423,6 +434,9 @@ class Bela:
         else:
             self.next_turn()
 
+    def player_has_bela(self, id_: int) -> bool:
+        return ("kralj", self.adut) in self.cards[id_].sve and ("baba", self.adut) in self.cards[id_].sve
+
     def get_zvanje_value(self, zvanje: list[Tuple[str, str]]) -> Tuple[int, str]:
         if len(zvanje) == 4 and zvanje[0][0] == zvanje[1][0]:
             v = zvanje[0][0]
@@ -444,6 +458,9 @@ class Bela:
 
     def get_zvanje_card_value(self, card: Tuple[str, str]) -> int:
         return ["7", "8", "9", "cener", "unter", "baba", "kralj", "kec"].index(card[0])
+
+    def get_player_zvanja(self, id_: int) -> list[list[Tuple[str, str]]]:
+        return self.zvanja[id_]
 
     def get_final_game_score(self) -> Tuple[int, int]:
         return sum(map(lambda x: x[0], self.games)), sum(map(lambda x: x[1], self.games))

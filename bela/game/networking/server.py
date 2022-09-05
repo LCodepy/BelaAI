@@ -77,12 +77,11 @@ class Server:
                     game.ready_up_player(player_id, True)
 
                 if Commands.equals(data, Commands.PLAY_CARD):
-                    if game.get_current_game_state() != GameState.IGRA:
+                    if game.get_current_game_state() != GameState.IGRA or game.player_turn != player_id:
                         passed = False
                     else:
                         passed = game.inspect_played_card(data.data[0].card, player_id)
-                    if game.player_turn != player_id:
-                        passed = False
+
                     connection.sendall(pickle.dumps(passed))
                     if passed:
                         game.add_card_to_table(data.data[0], player_id)
@@ -114,6 +113,10 @@ class Server:
                     game.zvanje_over[player_id][1] = True
                     if all(map(lambda x: x[1], game.zvanje_over)) and game.get_current_game_state() is GameState.ZVANJA:
                         game.next_game_state()
+
+                if Commands.equals(data, Commands.CALLED_BELA):
+                    print("CALLED BELA")
+                    # TODO: napravi da se pozove bela
 
                 if Commands.equals(data, Commands.END_TURN):
                     game.end_turn(player_id)

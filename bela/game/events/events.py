@@ -1,12 +1,14 @@
+from collections import defaultdict
+from typing import Union
+
 import pygame
 
 
 class EventHandler:
 
     def __init__(self):
-        self.key = None
-        self.current_key = None
-        self.key_unicode = None
+        self.keys = defaultdict(lambda: False)
+        self.unicode_keys = defaultdict(lambda: False)
 
         self.presses = {"left": False, "middle": False, "right": False, "up": False, "down": False}
         self.releases = {"left": False, "middle": False, "right": False, "up": False, "down": False}
@@ -14,7 +16,6 @@ class EventHandler:
         self.scrolls = {"up": False, "down": False}
 
     def loop(self):
-
         self.reset()
 
         if pygame.mouse.get_pressed()[0]:
@@ -29,8 +30,8 @@ class EventHandler:
                 return False
 
             elif event.type == pygame.KEYDOWN:
-                self.key = self.current_key = event.key
-                self.key_unicode = event.unicode
+                self.keys[event.key] = True
+                self.unicode_keys[event.unicode] = False
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button < 4:
@@ -49,13 +50,21 @@ class EventHandler:
         return True
 
     def reset(self):
-        self.key = None
-        self.key_unicode = None
+        self.keys = defaultdict(lambda: False)
+        self.unicode_keys = defaultdict(lambda: False)
 
         self.presses = {"left": False, "middle": False, "right": False, "up": False, "down": False}
         self.releases = {"left": False, "middle": False, "right": False, "up": False, "down": False}
         self.held = {"left": False, "middle": False, "right": False}
         self.scrolls = {"up": False, "down": False}
+
+    def is_key_pressed(self, key: int) -> bool:
+        return pygame.key.get_pressed()[key]
+
+    def key_just_pressed(self, key: Union[int, str]) -> bool:
+        if isinstance(key, str):
+            return self.unicode_keys[key]
+        return self.keys[key]
 
     def get_pos(self):
         return pygame.mouse.get_pos()

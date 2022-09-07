@@ -54,6 +54,9 @@ class Card:
     def get_pos(self) -> Tuple[int, int]:
         return self.x, self.y
 
+    def __repr__(self) -> str:
+        return f"Card({self.card})"
+
 
 class Bela:
 

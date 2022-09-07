@@ -314,6 +314,21 @@ class Client:
         if not self.game.current_game_over:
             self.activated_game_over = False
 
+        if not self.inventory_calculated:
+            self.calculate_card_positions(self.game.get_netalon(self.__player))
+            print("Calculated inv poses for netalon")
+
+        if self.game.get_current_game_state() is GameState.ZVANJE_ADUTA and (
+            self.game.get_adut() is None
+            and self.game.player_turn == self.__player
+            and not self.game.dalje[self.__player]
+        ):
+            self.update_calling_adut()
+
+        print(self.game.get_current_game_state())
+        if self.game.get_current_game_state() is GameState.ZVANJA and len(self.inventory) in (0, 6):
+            self.calculate_card_positions(self.get_cards().sve)
+
         self.sync_inventory()
 
         self.update_score()
@@ -325,19 +340,6 @@ class Client:
         if self.end_game:
             self.end_current_game()
             self.end_game = False
-
-        if self.game.get_current_game_state() is GameState.ZVANJE_ADUTA:
-            if not self.inventory_calculated:
-                self.calculate_card_positions(self.game.get_netalon(self.__player))
-            if (
-                    self.game.get_adut() is None and
-                    self.game.player_turn == self.__player and
-                    not self.game.dalje[self.__player]
-            ):
-                self.update_calling_adut()
-
-        if self.game.get_current_game_state() is GameState.ZVANJA and len(self.inventory) in (0, 6):
-            self.calculate_card_positions(self.get_cards().sve)
 
         if self.game.get_current_game_state() is GameState.ZVANJA:
             if not self.zvanja_dalje and not self.called_zvanje:
@@ -400,6 +402,14 @@ class Client:
         ):
             self.timed_actions[0]["DISPLAY_CARD_PLAYED"] = [True, time.time(), self.game.cards_on_table[-1]]
 
+        # DEBUG CODE
+        if self.event_handler.releases["right"]:
+            for i, c in enumerate(self.inventory):
+                card_passed = self.network.send(Commands.new(Commands.PLAY_CARD, c))
+                self.data = self.network.recv_only()
+                if card_passed:
+                    self.inventory.pop(i)
+
         if self.event_handler.releases["left"] and self.moving_card is not None:
             if self.card_area.collidepoint(self.inventory[self.moving_card].get_pos()):
                 self.handle_card_playing()
@@ -445,9 +455,7 @@ class Client:
                     card.rect.collidepoint(self.event_handler.get_pos()) and
                     self.moving_card is None and
                     ("MOVE_BACK_CARD" not in self.timed_actions[0] or
-                     not self.timed_actions[0]["MOVE_BACK_CARD"][0]) and
-                    ("CALL_BELA" not in self.timed_actions[0] or
-                     not self.timed_actions[0]["CALL_BELA"][0])
+                     not self.timed_actions[0]["MOVE_BACK_CARD"][0])
             ):
                 self.moving_card = i
 
@@ -458,11 +466,13 @@ class Client:
         card_passed = self.network.send(Commands.new(Commands.PLAY_CARD, self.inventory[self.moving_card]))
         self.data = self.network.recv_only()
         if card_passed:
-            self.inventory.pop(self.moving_card)
-            if self.calling_bela and None not in self.selected_cards_for_bela:
+            if self.calling_bela and None not in self.selected_cards_for_bela and \
+                self.inventory[self.moving_card].card in (("baba", self.game.get_adut()),
+                                                          ("kralj", self.game.get_adut())):
                 self.data = self.network.send(Commands.CALLED_BELA)
-                self.calling_bela = False
+            self.calling_bela = False
             self.selected_cards_for_bela = [None, None]
+            self.inventory.pop(self.moving_card)
             if self.game.cards_on_table:
                 self.timed_actions[0]["DISPLAY_CARD_PLAYED"] = [True, time.time(), self.game.cards_on_table[-1]]
         else:
@@ -861,8 +871,8 @@ class Client:
 
     def render_cards_on_table(self) -> None:
         if self.game.turn_just_ended:
-            for card in self.cards_on_table:
-                if card is None:
+            for i, card in enumerate(self.cards_on_table):
+                if card is None or not self.cards_on_table_positions_p2:
                     continue
                 card_img = pygame.transform.rotate(self.assets.card_images[card.card], -82 - card.angle)
                 self.canvas.blit(card_img, (card.x - card_img.get_width() // 2, card.y - card_img.get_height() // 2))
@@ -1193,8 +1203,8 @@ class Client:
                         self.cards_on_table[i].x = pos[1]
                         self.cards_on_table[i].y = pos[2]
                         self.cards_on_table[i].angle = pos[3]
-                        if j == len(positions) - 1:
-                            self.timed_actions[0]["TURN_ENDED"][1] -= 2
+                        if j == len(positions) - 1 and i == 3:
+                            self.timed_actions[0]["TURN_ENDED"][1] -= 100
 
     def move_back_card(self, current_time: float, card: int, copy_card: Card) -> None:
         card_x, card_y = copy_card.get_pos()

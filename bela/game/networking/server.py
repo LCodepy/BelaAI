@@ -71,6 +71,8 @@ class Server:
                 game = self.games[game_id]
                 game.set_nickname(player_id, nickname)
 
+                response = {"game": None, "data": {}}
+
                 # Check commands
 
                 if Commands.equals(data, Commands.READY_UP):
@@ -82,7 +84,7 @@ class Server:
                     else:
                         passed = game.inspect_played_card(data.data[0].card, player_id)
 
-                    connection.sendall(pickle.dumps(passed))
+                    response["data"]["passed"] = passed
                     if passed:
                         game.add_card_to_table(data.data[0], player_id)
                         game.cards[player_id].remove(data.data[0].card)
@@ -103,12 +105,14 @@ class Server:
                     game.next_turn()
 
                 if Commands.equals(data, Commands.ZVANJE):
+                    print("zvanje dalje", player_id)
                     game.add_zvanja(data.data[0], player_id)
                     game.zvanje_over[player_id][0] = True
                     if all(map(lambda x: x[0], game.zvanje_over)):
                         game.calculate_zvanja()
 
                 if Commands.equals(data, Commands.ZVANJE_GOTOVO):
+                    print("zvanje gotovo", player_id)
                     game.zvanje_over[player_id][0] = True
                     game.zvanje_over[player_id][1] = True
                     if all(map(lambda x: x[1], game.zvanje_over)) and game.get_current_game_state() is GameState.ZVANJA:
@@ -126,13 +130,9 @@ class Server:
 
                 self.games[game_id] = game
 
-                connection.sendall(
-                    pickle.dumps(
-                        {
-                            "game": game,
-                        }
-                    )
-                )
+                response["game"] = game
+
+                connection.sendall(pickle.dumps(response))
 
             except (socket.error, EOFError, ):
                 Log.i("SERVER", f"Player {player_id} from game {game_id} disconnected.")

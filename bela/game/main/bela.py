@@ -70,7 +70,7 @@ class Bela:
 
         self.player_data = [
             {"nickname": "", "ready": False},
-            {"nickname": "", "ready": True},
+            {"nickname": "", "ready": False},
             {"nickname": "", "ready": True},
             {"nickname": "", "ready": True}
         ]  # TODO: Replace with False
@@ -112,6 +112,10 @@ class Bela:
         self.ended_last_turn = False
 
         self.games = []
+
+        # for server controller
+
+        self.auto_play = [False] * 4
 
     def create_cards(self) -> None:
         types = ["herc", "pik", "karo", "tref"]

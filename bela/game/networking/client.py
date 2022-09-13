@@ -8,7 +8,7 @@ from typing import Any
 import pygame
 
 from bela.game.main.bela import GameState, Hand, Card
-from bela.game.networking.commands import Commands
+from bela.game.networking.commands import Commands, Command
 from bela.game.ui.button import Button
 from bela.game.utils.assets import Assets
 from bela.game.utils.shapes import RotatingRect
@@ -98,6 +98,7 @@ class Client:
         self.activated_turn_end = False
         self.activated_game_over = False
         self.end_game = False
+        self.started_new_game = True
 
         self.score_y_offset = 15
 
@@ -122,6 +123,8 @@ class Client:
                 cls.calculate_card_positions(cls.get_cards().sve)
 
         def update_label_text1(cls):
+            if cls.game.get_current_game_state() == GameState.IGRA:
+                return
             cls.label_dots += 1
             if cls.label_dots > 3:
                 cls.label_dots = 1
@@ -313,33 +316,31 @@ class Client:
 
         if not self.game.current_game_over:
             self.activated_game_over = False
+            if not self.started_new_game:
+                self.start_new_game()
 
-        if not self.inventory_calculated:
-            self.calculate_card_positions(self.game.get_netalon(self.__player))
-            print("Calculated inv poses for netalon")
+        if self.end_game:
+            self.end_current_game()
+            self.end_game = False
 
         if self.game.get_current_game_state() is GameState.ZVANJE_ADUTA and (
-            self.game.get_adut() is None
-            and self.game.player_turn == self.__player
-            and not self.game.dalje[self.__player]
+                self.game.get_adut() is None
+                and self.game.player_turn == self.__player
+                and not self.game.dalje[self.__player]
         ):
             self.update_calling_adut()
 
-        print(self.game.get_current_game_state())
         if self.game.get_current_game_state() is GameState.ZVANJA and len(self.inventory) in (0, 6):
             self.calculate_card_positions(self.get_cards().sve)
+
+        if not self.inventory_calculated:
+            self.calculate_card_positions(self.game.get_netalon(self.__player))
 
         self.sync_inventory()
 
         self.update_score()
 
         self.update_cards()
-
-        self.sort_cards_button.update(self.event_handler)
-
-        if self.end_game:
-            self.end_current_game()
-            self.end_game = False
 
         if self.game.get_current_game_state() is GameState.ZVANJA:
             if not self.zvanja_dalje and not self.called_zvanje:
@@ -352,6 +353,8 @@ class Client:
                     self.timer_handler.add_timer_during_exec("SHOW_ZVANJA", countdown, self.finish_zvanja, self)
                     self.zvanja_timer_created = True
                 self.update_game_zvanje()
+
+        self.sort_cards_button.update(self.event_handler)
 
     def update_score(self) -> None:
         if not pygame.Rect(35, 210, self.info_canvas.get_width() - 70, 240).collidepoint(self.event_handler.get_pos()):
@@ -402,13 +405,19 @@ class Client:
         ):
             self.timed_actions[0]["DISPLAY_CARD_PLAYED"] = [True, time.time(), self.game.cards_on_table[-1]]
 
-        # DEBUG CODE
-        if self.event_handler.releases["right"]:
-            for i, c in enumerate(self.inventory):
-                card_passed = self.network.send(Commands.new(Commands.PLAY_CARD, c))
-                self.data = self.network.recv_only()
-                if card_passed:
-                    self.inventory.pop(i)
+        # <DEBUG CODE>
+
+        if self.on_turn() and self.game.get_current_game_state() is GameState.IGRA and self.game.auto_play[
+            self.__player]:
+            for i, card in enumerate(self.inventory):
+                data = self.network.send(Commands.new(Commands.PLAY_CARD, card))
+                self.data = data
+                if data["data"]["passed"]:
+                    break
+            if self.inventory and data["data"]["passed"]:
+                self.inventory.pop(i)
+
+        # </DEBUG CODE>
 
         if self.event_handler.releases["left"] and self.moving_card is not None:
             if self.card_area.collidepoint(self.inventory[self.moving_card].get_pos()):
@@ -463,12 +472,13 @@ class Client:
                 self.inventory[i].set_pos(self.event_handler.get_pos())
 
     def handle_card_playing(self) -> None:
-        card_passed = self.network.send(Commands.new(Commands.PLAY_CARD, self.inventory[self.moving_card]))
-        self.data = self.network.recv_only()
+        data = self.network.send(Commands.new(Commands.PLAY_CARD, self.inventory[self.moving_card]))
+        card_passed = data["data"]["passed"]
+        self.data = data
         if card_passed:
             if self.calling_bela and None not in self.selected_cards_for_bela and \
-                self.inventory[self.moving_card].card in (("baba", self.game.get_adut()),
-                                                          ("kralj", self.game.get_adut())):
+                    self.inventory[self.moving_card].card in (("baba", self.game.get_adut()),
+                                                              ("kralj", self.game.get_adut())):
                 self.data = self.network.send(Commands.CALLED_BELA)
             self.calling_bela = False
             self.selected_cards_for_bela = [None, None]
@@ -777,6 +787,7 @@ class Client:
                 self.game.get_current_game_state() is GameState.IGRA
         ):
             self.render_cards(self.get_cards().sve)
+        # self.render_cards(list(map(lambda c: c.card, self.inventory)))
 
     def render_cards(self, cards: list) -> None:
         self.render_gained_cards()
@@ -825,7 +836,7 @@ class Client:
 
     def render_cards_in_hand(self, cards: list) -> None:
         for i, card in enumerate(cards):
-            if i == self.moving_card or self.selected_cards[i]:
+            if i == self.moving_card or self.selected_cards[i] or i >= len(self.inventory):
                 continue
             if (
                     self.game.get_current_game_state() is GameState.ZVANJA and
@@ -851,7 +862,7 @@ class Client:
             self.canvas.blit(card, (x - card.get_width() // 2, y - card.get_height() // 2))
 
         for i, card in enumerate(cards):
-            if i == self.moving_card or not self.selected_cards[i]:
+            if i == self.moving_card or not self.selected_cards[i] or i >= len(self.inventory):
                 continue
             if (
                     self.game.get_current_game_state() is GameState.ZVANJA and
@@ -929,12 +940,10 @@ class Client:
             if rot:
                 y0 -= 400
 
-            # p -= self.__player
-            # if p <= 0:
-            #    p = 4 - p
+            cards = self.game.get_netalon(p)
+            if self.game.dalje[p] or self.game.get_current_game_state() is not GameState.ZVANJE_ADUTA:
+                cards = self.game.cards[p].sve
 
-            cards = self.game.get_netalon(p) if self.game.get_current_game_state() is GameState.ZVANJE_ADUTA else \
-                self.game.cards[p].sve
             alpha = (98 if rot else -82) - len(cards) * k // 2
             for card in cards:
                 if (
@@ -973,7 +982,10 @@ class Client:
 
     def end_current_game(self) -> None:
         self.data = self.network.send(Commands.END_GAME)
+        self.end_game = False
+        self.started_new_game = False
 
+    def start_new_game(self) -> None:
         self.cards_on_table_positions_p1 = []
         self.cards_on_table_positions_p2 = []
 
@@ -995,6 +1007,7 @@ class Client:
         self.activated_turn_end = False
         self.activated_game_over = False
         self.end_game = False
+        self.started_new_game = True
 
         self.last_frame_cards_on_table = []
 

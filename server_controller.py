@@ -62,6 +62,23 @@ class ServerControllerSS:
                     except Exception as e:
                         response = str(e)
 
+                if cmnds and cmnds[0].lower() == "auto":
+                    try:
+                        val = True
+                        game_idx = 0
+                        if "-g" in cmnds:
+                            game_idx = int(cmnds[cmnds.index("-g")+1])
+                        if "-s" in cmnds:
+                            val = False
+                        if "-all" in cmnds:
+                            self.server.games[game_idx].auto_play = [val] * 4
+                        for cmnd in cmnds[1:]:
+                            if "-" in cmnd:
+                                break
+                            self.server.games[game_idx].auto_play[int(cmnd)] = val
+                    except Exception as e:
+                        response = str(e)
+
                 connection.sendall(pickle.dumps(response))
             except socket.error:
                 Log.e("SERVER", "Server controller closed!")

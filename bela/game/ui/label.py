@@ -52,6 +52,9 @@ class Label:
             text or self.text, self.bold, self.font_color.c
         )
 
+    def move(self, x: int = None, y: int = None) -> None:
+        self.position = (x or self.position[0], y or self.position[1])
+
     def render(self):
         for i, text in enumerate(self.lines):
             t = self.get_text(text=text)

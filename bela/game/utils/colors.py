@@ -23,6 +23,12 @@ class Color:
     def darker(self, value: int) -> Color:
         return Color(self.r - value, self.g - value, self.b - value, self.alpha)
 
+    @staticmethod
+    def color(color) -> Color:
+        if len(color) == 3:
+            return Color(color[0], color[1], color[2])
+        return Color(color[0], color[1], color[2], color[3])
+
 
 class Colors:
 

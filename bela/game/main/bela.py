@@ -99,6 +99,7 @@ class Bela:
         self.zvanja = [[], [], [], []]
         self.zvanje_over = [[False, False] for _ in range(4)]
         self.final_zvanja = [[], [], [], []]
+        self.zvanja_points = [0, 0]
 
         self.points = [0, 0]
         self.stihovi = [[], [], [], []]
@@ -112,6 +113,9 @@ class Bela:
         self.ended_last_turn = False
 
         self.games = []
+
+        self.called_bela = False
+        self.player_called_bela = -1
 
         # for server controller
 
@@ -271,7 +275,7 @@ class Bela:
         self.final_zvanja[zvanja_winner[0]] = zvanja_values[zvanja_winner[0]]
         self.final_zvanja[zvanja_winner[1]] = zvanja_values[zvanja_winner[1]]
 
-        self.points[mn_idx % 2] = sum(map(lambda x: x[0], zvanja_values[zvanja_winner[0]])) + sum(map(lambda x: x[0], zvanja_values[zvanja_winner[1]]))
+        self.zvanja_points[mn_idx % 2] = sum(map(lambda x: x[0], zvanja_values[zvanja_winner[0]])) + sum(map(lambda x: x[0], zvanja_values[zvanja_winner[1]]))
 
     def swap_cards_for_player(self, id_: int, cards: Tuple) -> None:
         c1, c2 = cards
@@ -365,6 +369,9 @@ class Bela:
             self.player_cards_on_table = [None] * 4
             self.turn_just_ended = False
             self.ready_to_end_turn = [False] * 4
+            if self.called_bela:
+                self.zvanja_points[self.player_called_bela % 2] += 20
+            self.called_bela = False
 
             if not self.cards[0].sve and not self.ended_last_turn:
                 self.current_game_over = True
@@ -372,12 +379,21 @@ class Bela:
                 self.set_turn(-1)
                 self.ended_last_turn = True
 
+                if self.stihovi[0] or self.stihovi[2]:
+                    self.points[0] += self.zvanja_points[0]
+                if self.stihovi[1] or self.stihovi[3]:
+                    self.points[1] += self.zvanja_points[1]
+
     def end_game(self, id_: int) -> None:
         self.ready_to_end_game[id_] = True
 
         if all(self.ready_to_end_game):
             self.current_game_over = False
+
             self.games.append(self.points)
+
+            if sum(self.games[0]) > self.max_points or sum(self.games[1]) > self.max_points:
+                pass  # TODO: make the game end
 
             self.start_new_game()
 
@@ -419,6 +435,9 @@ class Bela:
 
         self.current_game_over = False
         self.ended_last_turn = False
+        
+        self.called_bela = False
+        self.player_called_bela = -1
 
     def next_game_state(self) -> None:
         if self.current_state is GameState.ZVANJE_ADUTA:

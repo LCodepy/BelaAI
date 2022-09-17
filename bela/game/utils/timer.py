@@ -24,12 +24,11 @@ class TimerHandler:
     def update(self) -> None:
         for id_, timer in self.to_add:
             self.timers[id_] = timer
+        self.to_add.clear()
 
         to_remove = []
         for id_, timer in self.timers.items():
             if time.time() - timer.start >= timer.duration:
-                if id_ == "SHOW_ZVANJA":
-                    print(timer.duration, timer.start)
                 timer.activation(timer.cls)
                 to_remove.append(id_)
 
@@ -38,7 +37,6 @@ class TimerHandler:
                 self.timers.pop(id_)
 
         to_remove.clear()
-        self.to_add.clear()
 
     def add_timer(self, id_: str, duration: float, activation: Callable, cls: object) -> None:
         self.timers[id_] = Timer(time.time(), duration, activation, cls)

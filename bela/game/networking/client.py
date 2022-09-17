@@ -88,7 +88,9 @@ class Client:
         self.zvanja_dalje = False
         self.called_zvanje = False
         self.zvanja_timer_created = False
+        self.shown_zvanja_points = False
         self.calling_bela = False
+        self.bela_just_called = False
 
         self.switched_cards = []
         self.switched_cards_marker_color = (0, 255, 0, 0)
@@ -105,12 +107,31 @@ class Client:
         self.last_frame_cards_on_table = []
 
         self.timed_actions = [{}, {}]
+        self.timed_actions_durations = {
+            "MOVE_BACK_CARD": 1.0,
+            "SWITCH_CARDS": 1.0,
+            "DISPLAY_CARD_PLAYED": 0.8,
+            "CALL_BELA": 1.0,
+            "TURN_ENDED": 2.0,
+            "DISPLAY_CARD_ERROR": 0.4,
+            "GAME_OVER": 8.0
+        }
+        self.attributes = {
+            "__render_zvanja_gap": 20,
+            "__render_zvanja_card_width": 30,
+            "__var_score_y_value": 200,
+            "__var_waiting_dots_timer": 0.8,
+            "__var_waiting_dots_count_max": 3,
+            "__var_title_font_size": 210,
+            "__var_waiting_label_font_size": 100,
+            "__var_zvanja_points_appear_duration": 2
+        }
 
         # Event functions
 
         def on_play_btn_click(cls, x, y):
             cls.data = cls.network.send(Commands.READY_UP)
-            cls.timer_handler.add_timer("dots1", 0.8, update_label_text1, cls)
+            cls.timer_handler.add_timer("dots1", self.attributes["__var_waiting_dots_timer"], update_label_text1, cls)
 
         def on_options_btn_click(cls, x, y):
             pass
@@ -126,10 +147,11 @@ class Client:
             if cls.game.get_current_game_state() == GameState.IGRA:
                 return
             cls.label_dots += 1
-            if cls.label_dots > 3:
+            if cls.label_dots > self.attributes["__var_waiting_dots_count_max"]:
                 cls.label_dots = 1
             cls.waiting_lobby_label.set_text("Pričekajte" + "." * cls.label_dots)
-            cls.timer_handler.add_timer_during_exec("dots2", 0.8, update_label_text1, cls)
+            cls.timer_handler.add_timer_during_exec("dots2", self.attributes["__var_waiting_dots_timer"],
+                                                    update_label_text1, cls)
 
         def on_adut_btn_click(cls, x, y, btn):
             if cls.game.get_current_game_state() == GameState.ZVANJE_ADUTA:
@@ -169,7 +191,7 @@ class Client:
             self.display,
             (520, 180),
             (300, 200),
-            pygame.font.SysFont("comicsans", 210),
+            pygame.font.SysFont("comicsans", self.attributes["__var_title_font_size"]),
             text="BELA",
             font_color=Colors.white,
             bold=True
@@ -207,7 +229,7 @@ class Client:
             self.display,
             (self.display.get_width() // 2, self.display.get_height() // 2),
             (400, 200),
-            pygame.font.SysFont("comicsans", 100),
+            pygame.font.SysFont("comicsans", self.attributes["__var_waiting_label_font_size"]),
             text="Pričekajte",
             font_color=Colors.white,
             bold=True,
@@ -311,7 +333,7 @@ class Client:
 
     def update_game(self) -> None:
         if self.game.current_game_over and not self.activated_game_over:
-            self.timed_actions[1]["GAME_OVER"] = [True, time.time()]
+            self.timed_actions[1]["GAME_OVER"] = [True, self.timed_actions_durations["GAME_OVER"], time.time()]
             self.activated_game_over = True
 
         if not self.game.current_game_over:
@@ -322,6 +344,12 @@ class Client:
         if self.end_game:
             self.end_current_game()
             self.end_game = False
+
+        if self.game.called_bela and not self.bela_just_called:
+            self.bela_just_called = True
+            self.add_appearing_text((self.canvas.get_width() // 2, 170), "BELA", (0, 0, 100), 1.7)
+            self.add_appearing_text((self.canvas.get_width() // 2, 200), "+20", (0, 0, 100), 1.7,
+                                    font=self.assets.font32)
 
         if self.game.get_current_game_state() is GameState.ZVANJE_ADUTA and (
                 self.game.get_adut() is None
@@ -395,7 +423,7 @@ class Client:
         self.update_cards_in_inventory()
 
         if self.game.turn_just_ended and not self.activated_turn_end:
-            self.timed_actions[0]["TURN_ENDED"] = [True, time.time()]
+            self.timed_actions[0]["TURN_ENDED"] = [True, self.timed_actions_durations["TURN_ENDED"], time.time()]
             self.cards_on_table = copy.deepcopy(self.game.cards_on_table)
             self.activated_turn_end = True
 
@@ -403,12 +431,15 @@ class Client:
                 len(self.game.cards_on_table) != len(self.last_frame_cards_on_table)
                 and self.game.cards_on_table
         ):
-            self.timed_actions[0]["DISPLAY_CARD_PLAYED"] = [True, time.time(), self.game.cards_on_table[-1]]
+            self.timed_actions[0]["DISPLAY_CARD_PLAYED"] = [True, self.timed_actions_durations["DISPLAY_CARD_PLAYED"],
+                                                            time.time(), self.game.cards_on_table[-1]]
 
         # <DEBUG CODE>
 
         if self.on_turn() and self.game.get_current_game_state() is GameState.IGRA and self.game.auto_play[
             self.__player]:
+            data = {}
+            i = -1
             for i, card in enumerate(self.inventory):
                 data = self.network.send(Commands.new(Commands.PLAY_CARD, card))
                 self.data = data
@@ -455,7 +486,7 @@ class Client:
                 if None in self.selected_cards_for_bela:
                     self.selected_cards_for_bela = [None, None]
                 else:
-                    self.timed_actions[0]["CALL_BELA"] = [True, time.time()]
+                    self.timed_actions[0]["CALL_BELA"] = [True, self.timed_actions_durations["CALL_BELA"], time.time()]
                     self.calling_bela = True
                 break
 
@@ -484,11 +515,16 @@ class Client:
             self.selected_cards_for_bela = [None, None]
             self.inventory.pop(self.moving_card)
             if self.game.cards_on_table:
-                self.timed_actions[0]["DISPLAY_CARD_PLAYED"] = [True, time.time(), self.game.cards_on_table[-1]]
+                self.timed_actions[0]["DISPLAY_CARD_PLAYED"] = [True,
+                                                                self.timed_actions_durations["DISPLAY_CARD_PLAYED"],
+                                                                time.time(), self.game.cards_on_table[-1]]
         else:
-            self.timed_actions[0]["MOVE_BACK_CARD"] = [True, time.time(), self.moving_card,
+            self.timed_actions[0]["MOVE_BACK_CARD"] = [True, self.timed_actions_durations["MOVE_BACK_CARD"],
+                                                       time.time(),
+                                                       self.moving_card,
                                                        copy.deepcopy(self.inventory[self.moving_card])]
-            self.timed_actions[1]["DISPLAY_CARD_ERROR"] = [True, time.time()]
+            self.timed_actions[1]["DISPLAY_CARD_ERROR"] = [True, self.timed_actions_durations["DISPLAY_CARD_ERROR"],
+                                                           time.time()]
 
     def handle_card_swapping(self) -> None:
         for i, card in enumerate(self.inventory):
@@ -514,44 +550,47 @@ class Client:
                     self.selected_cards[i], self.selected_cards[self.moving_card]
 
                 self.switched_cards = [self.moving_card, i]
-                self.timed_actions[0]["SWITCH_CARDS"] = [True, time.time()]
+                self.timed_actions[0]["SWITCH_CARDS"] = [True, self.timed_actions_durations["SWITCH_CARDS"],
+                                                         time.time()]
                 break
         else:
-            self.timed_actions[0]["MOVE_BACK_CARD"] = [True, time.time(), self.moving_card,
+            self.timed_actions[0]["MOVE_BACK_CARD"] = [True, self.timed_actions_durations["MOVE_BACK_CARD"],
+                                                       time.time(),
+                                                       self.moving_card,
                                                        copy.deepcopy(self.inventory[self.moving_card])]
 
     def update_timed_actions(self) -> None:
         to_remove = []
-        to_add = []
         for action, args in self.timed_actions[0].items():
             t = time.time()
+            duration = args[1]
 
-            if action == "MOVE_BACK_CARD" and args[0] and t - args[1] < 1:
-                self.move_back_card(t - args[1], args[2], args[3])
+            if action == "MOVE_BACK_CARD" and args[0] and t - args[2] < duration:
+                self.move_back_card(t - args[2], args[3], args[4])
 
             if action == "SWITCH_CARDS" and args[0]:
-                if t - args[1] < 1:
-                    self.switch_card_unmark(t - args[1])
-                elif t - args[1] > 1:
+                if t - args[2] < duration:
+                    self.switch_card_unmark(t - args[2])
+                elif t - args[2] > duration:
                     self.switched_cards = []
                     to_remove.append("SWITCH_CARDS")
 
             if action == "DISPLAY_CARD_PLAYED" and args[0]:
-                if t - args[1] < 0.8:
-                    self.placed_card_unmark(t - args[1])
-                elif t - args[1] > 0.8:
+                if t - args[2] < duration:
+                    self.placed_card_unmark(t - args[2])
+                elif t - args[2] > duration:
                     to_remove.append("DISPLAY_CARD_PLAYED")
 
             if action == "CALL_BELA" and args[0]:
-                if t - args[1] < 1:
-                    self.called_bela_unmark(t - args[1])
-                elif t - args[1] > 1:
+                if t - args[2] < duration:
+                    self.called_bela_unmark(t - args[2])
+                elif t - args[2] > duration:
                     to_remove.append("CALL_BELA")
 
             if action == "TURN_ENDED" and args[0]:
-                if t - args[1] < 2:
-                    self.move_removed_cards(t - args[1])
-                elif t - args[1] > 2:
+                if t - args[2] < duration:
+                    self.move_removed_cards(t - args[2])
+                elif t - args[2] > duration:
                     self.cards_on_table_positions_p1 = []
                     self.cards_on_table_positions_p2 = []
                     self.cards_on_table = []
@@ -561,9 +600,6 @@ class Client:
 
         for rem in to_remove:
             self.timed_actions[0].pop(rem)
-
-        for add in to_add:
-            self.timed_actions[0][add[0]] = add[1]
 
     def render(self) -> None:
         self.win.fill(Colors.white.c)
@@ -617,7 +653,7 @@ class Client:
         self.render_score()
 
     def render_score(self) -> None:
-        y = 200
+        y = self.attributes["__var_score_y_value"]
         pygame.draw.rect(self.info_canvas, (10, 30, 50), [35, y - 20, self.info_canvas.get_width() - 70, 30])
 
         Label.render_text(self.info_canvas, "MI", ((self.info_canvas.get_width() + 70) // 4, y),
@@ -692,6 +728,9 @@ class Client:
             if not self.zvanja_dalje and not self.called_zvanje:
                 self.render_zvanja()
             elif self.game.get_zvanje_state() == 1:
+                if not self.shown_zvanja_points:
+                    self.shown_zvanja_points = True
+                    self.render_zvanja_points()
                 self.render_game_zvanje()
 
     def render_calling_adut(self) -> None:
@@ -706,6 +745,31 @@ class Client:
         if self.game.count_dalje < 3:
             self.dalje_button.render()
 
+    def render_zvanja_points(self) -> None:
+        for player in range(len(self.game.final_zvanja)):
+            if not self.game.final_zvanja[player]:
+                continue
+            i = player
+            if self.__player > 1:
+                player = player + 2
+                if player > 3:
+                    player -= 4
+
+            zvanja = self.game.zvanja[i]
+            zvanja_render_length = sum(len(z) * self.attributes["__render_zvanja_card_width"] for z in zvanja) + \
+                (len(zvanja) - 1) * self.attributes["__render_zvanja_gap"]
+
+            x, y = self.zvanja_card_positions[player]
+            if player in (0, 3):
+                x += zvanja_render_length // 2 + self.attributes["__render_zvanja_gap"] * 2
+            else:
+                x -= zvanja_render_length // 2 + self.attributes["__render_zvanja_gap"] * 2
+
+            self.add_appearing_text(
+                (x, y), f"+{sum(self.game.get_zvanje_value(z)[0] for z in self.game.zvanja[i])}",
+                (0, 0, 100), self.attributes["__var_zvanja_points_appear_duration"], self.assets.font32
+            )
+
     def render_zvanja(self) -> None:
         surf = pygame.Surface((self.display.get_width(), 140), pygame.SRCALPHA)
         surf.fill((0, 0, 0))
@@ -716,7 +780,9 @@ class Client:
         self.ima_zvanja_button.render()
         self.nema_zvanja_button.render()
 
-    def render_game_zvanje(self, zvanja_gap: int = 20, card_width: int = 30) -> None:
+    def render_game_zvanje(self) -> None:
+        zvanja_gap = self.attributes["__render_zvanja_gap"]
+        card_width = self.attributes["__render_zvanja_card_width"]
         for player in range(4):
             if not self.game.final_zvanja[player]:
                 continue
@@ -787,7 +853,6 @@ class Client:
                 self.game.get_current_game_state() is GameState.IGRA
         ):
             self.render_cards(self.get_cards().sve)
-        # self.render_cards(list(map(lambda c: c.card, self.inventory)))
 
     def render_cards(self, cards: list) -> None:
         self.render_gained_cards()
@@ -895,11 +960,11 @@ class Client:
             card_img = pygame.transform.rotate(self.assets.card_images[card.card], -82 - card.angle)
             if (
                     "DISPLAY_CARD_PLAYED" in self.timed_actions[0] and
-                    card.card == self.timed_actions[0]["DISPLAY_CARD_PLAYED"][2].card
+                    card.card == self.timed_actions[0]["DISPLAY_CARD_PLAYED"][3].card
             ):
                 action = self.timed_actions[0]["DISPLAY_CARD_PLAYED"]
-                current_time = time.time() - action[1]
-                if action[0] and current_time < 0.8:
+                current_time = time.time() - action[2]
+                if action[0] and current_time < action[1]:
                     rendering.render_outline(
                         card_img, self.canvas, self.placed_card_marker_color, card.x, card.y, 3, 3, 2
                     )
@@ -966,13 +1031,23 @@ class Client:
 
         for action, args in self.timed_actions[1].items():
             t = time.time()
+            duration = 0
+            if len(args) > 1:
+                duration = args[1]
 
-            if action == "DISPLAY_CARD_ERROR" and args[0] and t - args[1] < 0.4:
-                self.display_card_error(t - args[1])
+            if action == "DISPLAY_CARD_ERROR" and args[0] and t - args[2] < duration:
+                self.display_card_error(t - args[2])
+
+            if action == "APPEAR_TEXT":
+                for data in args:
+                    if data[0] and t - data[2] < data[1]:
+                        if data[7] is None:
+                            data[7] = self.assets.font24
+                        self.appear_text(t - data[2], data[3], data[4], data[5], data[6], data[1], data[7])
 
             if action == "GAME_OVER" and args[0]:
-                if t - args[1] < 8:
-                    self.display_game_over(t - args[1])
+                if t - args[2] < duration:
+                    self.display_game_over(t - args[2])
                 else:
                     self.end_game = True
                     to_remove.append("GAME_OVER")
@@ -1002,7 +1077,9 @@ class Client:
         self.zvanja_dalje = False
         self.called_zvanje = False
         self.zvanja_timer_created = False
+        self.shown_zvanja_points = False
         self.calling_bela = False
+        self.bela_just_called = False
 
         self.activated_turn_end = False
         self.activated_game_over = False
@@ -1127,6 +1204,12 @@ class Client:
     def finish_zvanja(self, _) -> None:
         self.data = self.network.send(Commands.ZVANJE_GOTOVO)
 
+    def add_appearing_text(self, pos: Tuple[int, int], text: str, color: Tuple[int, int, int], duration: float,
+                           font: pygame.font.SysFont = None) -> None:
+        if "APPEAR_TEXT" not in self.timed_actions[1]:
+            self.timed_actions[1]["APPEAR_TEXT"] = []
+        self.timed_actions[1]["APPEAR_TEXT"].append([True, duration, time.time(), pos[0], pos[1], text, color, font])
+
     # Timed action functions
 
     def display_card_error(self, current_time: float) -> None:
@@ -1217,7 +1300,14 @@ class Client:
                         self.cards_on_table[i].y = pos[2]
                         self.cards_on_table[i].angle = pos[3]
                         if j == len(positions) - 1 and i == 3:
-                            self.timed_actions[0]["TURN_ENDED"][1] -= 100
+                            self.timed_actions[0]["TURN_ENDED"][2] -= 100
+
+    def appear_text(self, current_time: float, x: int, y: int, text: str, color: Tuple[int, int, int], duration: float,
+                    font: pygame.font.SysFont) -> None:
+        value = duration / 2 - abs(current_time - duration / 2)
+        alpha = max(min(255, int(value * 600)), 0)
+
+        Label.render_text(self.timed_actions_after_canvas, text, (x, y), font, color, alpha=alpha)
 
     def move_back_card(self, current_time: float, card: int, copy_card: Card) -> None:
         card_x, card_y = copy_card.get_pos()
@@ -1229,7 +1319,8 @@ class Client:
         self.inventory[card].x += vel[0] * min(max(abs(dist), 50), 60) / 1000
         self.inventory[card].y += vel[1] * min(max(abs(dist), 50), 60) / 1000
 
-        self.timed_actions[0]["MOVE_BACK_CARD"] = [True, time.time(), card, copy_card]
+        self.timed_actions[0]["MOVE_BACK_CARD"] = [True, self.timed_actions_durations["MOVE_BACK_CARD"],
+                                                   time.time(), card, copy_card]
 
         if (
                 math.sqrt((org_x - self.inventory[card].x) ** 2 + (org_y - self.inventory[card].y) ** 2) <= 10 or
@@ -1239,7 +1330,8 @@ class Client:
                 (self.inventory[card].x < org_x and vel[0] < 0)
         ):
             self.inventory[card].move_back()
-            self.timed_actions[0]["MOVE_BACK_CARD"] = [False, 0, card, copy_card]
+            self.timed_actions[0]["MOVE_BACK_CARD"] = [False, self.timed_actions_durations["MOVE_BACK_CARD"],
+                                                       0, card, copy_card]
 
     def get_cards(self) -> Hand:
         return self.game.cards[self.__player]

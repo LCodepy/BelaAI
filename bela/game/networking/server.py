@@ -105,22 +105,20 @@ class Server:
                     game.next_turn()
 
                 if Commands.equals(data, Commands.ZVANJE):
-                    print("zvanje dalje", player_id)
                     game.add_zvanja(data.data[0], player_id)
                     game.zvanje_over[player_id][0] = True
                     if all(map(lambda x: x[0], game.zvanje_over)):
                         game.calculate_zvanja()
 
                 if Commands.equals(data, Commands.ZVANJE_GOTOVO):
-                    print("zvanje gotovo", player_id)
                     game.zvanje_over[player_id][0] = True
                     game.zvanje_over[player_id][1] = True
                     if all(map(lambda x: x[1], game.zvanje_over)) and game.get_current_game_state() is GameState.ZVANJA:
                         game.next_game_state()
 
                 if Commands.equals(data, Commands.CALLED_BELA):
-                    print("CALLED BELA")
-                    # TODO: napravi da se pozove bela
+                    game.called_bela = True
+                    game.player_called_bela = player_id
 
                 if Commands.equals(data, Commands.END_TURN):
                     game.end_turn(player_id)

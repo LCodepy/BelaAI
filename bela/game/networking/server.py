@@ -97,6 +97,7 @@ class Server:
 
                 if Commands.equals(data, Commands.CALL_ADUT):
                     game.set_adut(data.data[0])
+                    game.adut_caller = player_id
                     game.next_game_state()
 
                 if Commands.equals(data, Commands.DALJE):

@@ -91,6 +91,7 @@ class Client:
         self.shown_zvanja_points = False
         self.calling_bela = False
         self.bela_just_called = False
+        self.belot_over = False
 
         self.switched_cards = []
         self.switched_cards_marker_color = (0, 255, 0, 0)
@@ -114,7 +115,8 @@ class Client:
             "CALL_BELA": 1.0,
             "TURN_ENDED": 2.0,
             "DISPLAY_CARD_ERROR": 0.4,
-            "GAME_OVER": 8.0
+            "GAME_OVER": 8.0,
+            "BELOT": 6.0
         }
         self.attributes = {
             "__render_zvanja_gap": 20,
@@ -679,10 +681,17 @@ class Client:
         score_canvas = pygame.Surface((self.info_canvas.get_width() - 60, 220), pygame.SRCALPHA)
 
         for i, game in enumerate(games):
-            Label.render_text(score_canvas, str(game[self.__player % 2]),
+            str_p1 = str(game[self.__player % 2])
+            str_p2 = str(game[not self.__player % 2])
+
+            if game[self.__player % 2] is None:
+                str_p1 = "-"
+            if game[not self.__player % 2] is None:
+                str_p2 = "-"
+            Label.render_text(score_canvas, str_p1,
                               ((score_canvas.get_width() + 5) // 4, self.score_y_offset + i * 25),
                               self.assets.font24, (180, 180, 180))
-            Label.render_text(score_canvas, str(game[not self.__player % 2]),
+            Label.render_text(score_canvas, str_p2,
                               ((3 * score_canvas.get_width() - 5) // 4, self.score_y_offset + i * 25),
                               self.assets.font24, (180, 180, 180))
 
@@ -1052,6 +1061,13 @@ class Client:
                     self.end_game = True
                     to_remove.append("GAME_OVER")
 
+            if action == "BELOT" and args[0]:
+                if t - args[2] < duration:
+                    self.display_belot(t - args[2])
+                else:
+                    self.belot_over = True
+                    to_remove.append("BELOT")
+
         for k in to_remove:
             self.timed_actions[1].pop(k)
 
@@ -1084,6 +1100,7 @@ class Client:
         self.activated_turn_end = False
         self.activated_game_over = False
         self.end_game = False
+        self.belot_over = False
         self.started_new_game = True
 
         self.last_frame_cards_on_table = []
@@ -1204,6 +1221,9 @@ class Client:
     def finish_zvanja(self, _) -> None:
         self.data = self.network.send(Commands.ZVANJE_GOTOVO)
 
+        if self.game.called_belot:
+            self.timed_actions[1]["BELOT"] = [True, self.timed_actions_durations["BELOT"], time.time()]
+
     def add_appearing_text(self, pos: Tuple[int, int], text: str, color: Tuple[int, int, int], duration: float,
                            font: pygame.font.SysFont = None) -> None:
         if "APPEAR_TEXT" not in self.timed_actions[1]:
@@ -1230,7 +1250,7 @@ class Client:
 
         Label.render_text(
             surf,
-            "GAME OVER",
+            "RUNDA GOTOVA",
             (self.canvas.get_width() // 2, self.canvas.get_height() // 2 - 100),
             self.assets.font48,
             (255, 255, 255),
@@ -1250,11 +1270,49 @@ class Client:
         )
         str_p1 = str(self.game.points[0])
         str_p2 = str(self.game.points[1])
+        if self.game.points[0] is None:
+            str_p1 = "\\"
+        if self.game.points[1] is None:
+            str_p2 = "\\"
         k1 = len(str_p2) - len(str_p1)
         k2 = -k1
         Label.render_text(
             surf,
             " " * max(k1, 0) + str_p1 + "  -  " + str_p2 + " " * max(k2, 0),
+            (self.canvas.get_width() // 2, self.canvas.get_height() // 2 + 40),
+            self.assets.font24,
+            (200, 200, 200)
+        )
+
+        surf.set_alpha(alpha)
+
+        self.timed_actions_after_canvas.blit(surf, (0, 0))
+
+    def display_belot(self, current_time: float) -> None:
+        alpha = max(min(int(current_time * 800), 255), 0)
+
+        surf = pygame.Surface(self.canvas.get_size(), pygame.SRCALPHA)
+        pygame.draw.rect(surf, (0, 0, 0, 150), self.canvas.get_rect())
+
+        Label.render_text(
+            surf,
+            "BELOT",
+            (self.canvas.get_width() // 2, self.canvas.get_height() // 2 - 100),
+            self.assets.font48,
+            (255, 255, 255),
+            bold=True
+        )
+
+        belot_player = -1
+        for i, zvanja in enumerate(self.game.final_zvanja):
+            for zvanje in zvanja:
+                if zvanje[1] == "belot":
+                    belot_player = i
+                    break
+
+        Label.render_text(
+            surf,
+            str(belot_player),
             (self.canvas.get_width() // 2, self.canvas.get_height() // 2 + 40),
             self.assets.font24,
             (200, 200, 200)

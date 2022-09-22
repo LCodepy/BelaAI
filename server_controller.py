@@ -79,6 +79,27 @@ class ServerControllerSS:
                     except Exception as e:
                         response = str(e)
 
+                if cmnds and cmnds[0].lower() == "belot":
+                    try:
+                        game_idx = 0
+                        player = 0
+                        color = "herc"
+                        if "-g" in cmnds:
+                            game_idx = int(cmnds[cmnds.index("-g")+1])
+                        if "-p" in cmnds:
+                            player = int(cmnds[cmnds.index("-p")+1])
+                        if "-c" in cmnds:
+                            color = cmnds[cmnds.index("-c")+1]
+
+                        if color not in ("pik", "herc", "karo", "tref"):
+                            raise ValueError("Invalid card color.")
+
+                        cards = [(value, color) for value in ["7", "8", "9", "cener", "unter", "baba", "kralj", "kec"]]
+                        for i, card in enumerate(cards):
+                            self.server.games[game_idx].cards[player].sve[i] = card
+                    except Exception as e:
+                        response = str(e)
+
                 connection.sendall(pickle.dumps(response))
             except socket.error:
                 Log.e("SERVER", "Server controller closed!")

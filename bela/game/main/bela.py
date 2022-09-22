@@ -101,7 +101,7 @@ class Bela:
         self.final_zvanja = [[], [], [], []]
         self.zvanja_points = [0, 0]
 
-        self.points = [0, 0]
+        self.points: list[Optional[int]] = [0, 0]
         self.stihovi = [[], [], [], []]
 
         self.turn_just_ended = False
@@ -116,6 +116,8 @@ class Bela:
 
         self.called_bela = False
         self.player_called_bela = -1
+        self.adut_caller = -1
+        self.called_belot = False
 
         # for server controller
 
@@ -277,6 +279,9 @@ class Bela:
 
         self.zvanja_points[mn_idx % 2] = sum(map(lambda x: x[0], zvanja_values[zvanja_winner[0]])) + sum(map(lambda x: x[0], zvanja_values[zvanja_winner[1]]))
 
+        if mx_zvanje[1] == "belot":
+            self.called_belot = True
+
     def swap_cards_for_player(self, id_: int, cards: Tuple) -> None:
         c1, c2 = cards
         self.cards[id_].sve[c1], self.cards[id_].sve[c2] = self.cards[id_].sve[c2], self.cards[id_].sve[c1]
@@ -384,6 +389,11 @@ class Bela:
                 if self.stihovi[1] or self.stihovi[3]:
                     self.points[1] += self.zvanja_points[1]
 
+                if not (self.stihovi[0] and self.stihovi[2]) and self.adut_caller in (0, 2):
+                    self.points[0] = None
+                if not (self.stihovi[1] and self.stihovi[3]) and self.adut_caller in (1, 3):
+                    self.points[1] = None
+
     def end_game(self, id_: int) -> None:
         self.ready_to_end_game[id_] = True
 
@@ -392,7 +402,10 @@ class Bela:
 
             self.games.append(self.points)
 
-            if sum(self.games[0]) > self.max_points or sum(self.games[1]) > self.max_points:
+            if (
+                    sum(filter(lambda x: x is not None, map(lambda x: x[0], self.games))) > self.max_points or
+                    sum(filter(lambda x: x is not None, map(lambda x: x[1], self.games))) > self.max_points
+            ):
                 pass  # TODO: make the game end
 
             self.start_new_game()
@@ -438,6 +451,8 @@ class Bela:
         
         self.called_bela = False
         self.player_called_bela = -1
+        self.adut_caller = -1
+        self.called_belot = False
 
     def next_game_state(self) -> None:
         if self.current_state is GameState.ZVANJE_ADUTA:
@@ -489,7 +504,8 @@ class Bela:
         return self.zvanja[id_]
 
     def get_final_game_score(self) -> Tuple[int, int]:
-        return sum(map(lambda x: x[0], self.games)), sum(map(lambda x: x[1], self.games))
+        return sum(filter(lambda x: x is not None, map(lambda x: x[0], self.games))), \
+               sum(filter(lambda x: x is not None, map(lambda x: x[1], self.games)))
 
     def set_adut(self, adut: str) -> None:
         self.adut = adut

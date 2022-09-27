@@ -47,10 +47,27 @@ class Label:
         self.text = text
         self.update_text()
 
+    def set_surface(self, surf: pygame.Surface) -> None:
+        self.display = surf
+
     def get_text(self, text: str = None):
         return self.font.render(
             text or self.text, self.bold, self.font_color.c
         )
+
+    def get_size(self) -> Tuple[int, int]:
+        x_size = 0
+        y_size = 0
+        for i, text in enumerate(self.lines):
+            t = self.get_text(text=text)
+
+            x_size = max(t.get_rect().w, x_size)
+            y_size = (len(self.lines) * (t.get_rect().h + 2) - 2)
+
+        return x_size, y_size
+
+    def get_pos(self) -> Tuple[int, int]:
+        return self.position
 
     def move(self, x: int = None, y: int = None) -> None:
         self.position = (x or self.position[0], y or self.position[1])

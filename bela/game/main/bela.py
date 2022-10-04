@@ -1,6 +1,7 @@
 import random
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from itertools import chain
 from typing import Tuple, Optional
 
 import pygame
@@ -282,6 +283,10 @@ class Bela:
         if mx_zvanje[1] == "belot":
             self.called_belot = True
 
+            self.points[0] += self.zvanja_points[0]
+            self.points[1] += self.zvanja_points[1]
+            self.games.append(self.points)
+
     def swap_cards_for_player(self, id_: int, cards: Tuple) -> None:
         c1, c2 = cards
         self.cards[id_].sve[c1], self.cards[id_].sve[c2] = self.cards[id_].sve[c2], self.cards[id_].sve[c1]
@@ -477,6 +482,9 @@ class Bela:
 
     def player_has_bela(self, id_: int) -> bool:
         return ("kralj", self.adut) in self.cards[id_].sve and ("baba", self.adut) in self.cards[id_].sve
+
+    def card_in_player_zvanja(self, card: Tuple[str, str], id_: int) -> bool:
+        return card in list(chain(*self.get_player_zvanja(id_)))
 
     def get_zvanje_value(self, zvanje: list[Tuple[str, str]]) -> Tuple[int, str]:
         if len(zvanje) == 4 and zvanje[0][0] == zvanje[1][0]:

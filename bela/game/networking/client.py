@@ -2,13 +2,12 @@ import copy
 import math
 import random
 import time
-from itertools import chain
 from typing import Any
 
 import pygame
 
 from bela.game.main.bela import GameState, Hand, Card
-from bela.game.networking.commands import Commands, Command
+from bela.game.networking.commands import Commands
 from bela.game.ui.button import Button
 from bela.game.utils.animations import AnimationHandler, AnimationFactory
 from bela.game.utils.assets import Assets
@@ -514,11 +513,11 @@ class Client:
             if (
                     self.game.get_current_game_state() is GameState.ZVANJA and
                     self.game.get_zvanje_state() == 1 and
-                    card.card in list(chain(*self.game.get_player_zvanja(self.__player)))
+                    self.game.card_in_player_zvanja(card.card, self.__player)
             ):
                 continue
 
-            i = len(self.inventory) - i - 1
+            index = len(self.inventory) - i - 1
 
             if (
                     self.event_handler.presses["right"] and
@@ -528,16 +527,7 @@ class Client:
                     card.card in [("baba", self.game.get_adut()), ("kralj", self.game.get_adut())] and
                     self.game.player_has_bela(self.__player)
             ):
-                idx = 0
-                for x, c in enumerate(self.inventory):
-                    if c.card in (("kralj", self.game.get_adut()), ("baba", self.game.get_adut())):
-                        self.selected_cards_for_bela[idx] = x
-                        idx = 1
-                if None in self.selected_cards_for_bela:
-                    self.selected_cards_for_bela = [None, None]
-                else:
-                    self.timed_actions[0]["CALL_BELA"] = [True, self.timed_actions_durations["CALL_BELA"], time.time()]
-                    self.calling_bela = True
+                self.call_bela()
                 break
 
             if (
@@ -547,10 +537,10 @@ class Client:
                     ("MOVE_BACK_CARD" not in self.timed_actions[0] or
                      not self.timed_actions[0]["MOVE_BACK_CARD"][0])
             ):
-                self.moving_card = i
+                self.moving_card = index
 
-            if self.moving_card == i:
-                self.inventory[i].set_pos(self.event_handler.get_pos())
+            if self.moving_card == index:
+                self.inventory[index].set_pos(self.event_handler.get_pos())
 
     def handle_card_playing(self) -> None:
         data = self.network.send(Commands.new(Commands.PLAY_CARD, self.inventory[self.moving_card]))
@@ -581,7 +571,7 @@ class Client:
             if (
                     self.game.get_current_game_state() is GameState.ZVANJA and
                     self.game.get_zvanje_state() == 1 and
-                    card.card in list(chain(*self.game.get_player_zvanja(self.__player)))
+                    self.game.card_in_player_zvanja(card.card, self.__player)
             ):
                 continue
             if (
@@ -934,7 +924,7 @@ class Client:
             self.render_card_outline(card, x, y, self.switched_cards_marker_color)
 
         for i in self.selected_cards_for_bela:
-            if i is not None:
+            if isinstance(i, (int, slice, )):
                 card = cards[i]
                 x = self.inventory[i].x
                 y = self.inventory[i].y
@@ -970,7 +960,7 @@ class Client:
             if (
                     self.game.get_current_game_state() is GameState.ZVANJA and
                     self.game.get_zvanje_state() == 1 and
-                    card in list(chain(*self.game.get_player_zvanja(self.__player)))
+                    self.game.card_in_player_zvanja(card, self.__player)
             ):
                 continue
             x = self.inventory[i].x
@@ -983,11 +973,16 @@ class Client:
                 elif i == min(self.switched_cards):
                     self.render_card_outline(card, x, y, self.switched_cards_marker_color)
 
-            if i in self.selected_cards_for_bela:
+            if (
+                    i in self.selected_cards_for_bela and
+                    isinstance(self.selected_cards_for_bela[0], int) and
+                    isinstance(self.selected_cards_for_bela[1], int)
+            ):
                 if abs(self.selected_cards_for_bela[0] - self.selected_cards_for_bela[1]) > 1:
                     self.render_card_outline(card, x, y, self.called_bela_marker_color)
                 elif i == min(self.selected_cards_for_bela):
                     self.render_card_outline(card, x, y, self.called_bela_marker_color)
+
             self.canvas.blit(card, (x - card.get_width() // 2, y - card.get_height() // 2))
 
         for i, card in enumerate(cards):
@@ -996,7 +991,7 @@ class Client:
             if (
                     self.game.get_current_game_state() is GameState.ZVANJA and
                     self.game.get_zvanje_state() == 1 and
-                    card in list(chain(*self.game.get_player_zvanja(self.__player)))
+                    self.game.card_in_player_zvanja(card, self.__player)
             ):
                 continue
             x = self.inventory[i].x
@@ -1078,7 +1073,7 @@ class Client:
                 if (
                         self.game.get_current_game_state() is GameState.ZVANJA and
                         self.game.get_zvanje_state() == 1 and
-                        card in list(chain(*self.game.get_player_zvanja(p)))
+                        self.game.card_in_player_zvanja(card, p)
                 ):
                     continue
                 x = int(math.cos(math.radians(alpha)) * r)
@@ -1114,6 +1109,7 @@ class Client:
                 self.display_game_over(t - args[2])
                 if t - args[2] >= duration:
                     if not self.set_game_ended:
+                        print("ended")
                         self.end_game = True
                         self.set_game_ended = True
                     if self.end_match:
@@ -1198,6 +1194,19 @@ class Client:
                                                                          ))
             )
         self.inventory_calculated = True
+
+    def call_bela(self) -> None:
+        idx = 0
+        for i, card in enumerate(self.inventory):
+            if card.card in (("kralj", self.game.get_adut()), ("baba", self.game.get_adut())):
+                self.selected_cards_for_bela[idx] = i
+                idx = 1
+
+        if None in self.selected_cards_for_bela:
+            self.selected_cards_for_bela = [None, None]
+        else:
+            self.timed_actions[0]["CALL_BELA"] = [True, self.timed_actions_durations["CALL_BELA"], time.time()]
+            self.calling_bela = True
 
     def sync_inventory(self) -> None:
         org_cards = self.get_cards().sve

@@ -25,6 +25,7 @@ class Commands:
     CALLED_BELA = Command("CALLED_BELA", None)
     END_TURN = Command("END_TURN", None)
     END_GAME = Command("END_GAME", None)
+    END_MATCH = Command("END_MATCH", None)
 
     @staticmethod
     def new(c: Command, *args) -> Command:

@@ -111,6 +111,7 @@ class Bela:
         self.ready_to_end_game = [False] * 4
 
         self.current_game_over = False
+        self.current_match_over = False
         self.ended_last_turn = False
 
         self.games = []
@@ -287,6 +288,8 @@ class Bela:
             self.points[1] += self.zvanja_points[1]
             self.games.append(self.points)
 
+            self.current_match_over = True
+
     def swap_cards_for_player(self, id_: int, cards: Tuple) -> None:
         c1, c2 = cards
         self.cards[id_].sve[c1], self.cards[id_].sve[c2] = self.cards[id_].sve[c2], self.cards[id_].sve[c1]
@@ -389,14 +392,26 @@ class Bela:
                 self.set_turn(-1)
                 self.ended_last_turn = True
 
-                if self.stihovi[0] or self.stihovi[2]:
-                    self.points[0] += self.zvanja_points[0]
-                if self.stihovi[1] or self.stihovi[3]:
-                    self.points[1] += self.zvanja_points[1]
+                self.points[0] += self.zvanja_points[0]
+                self.points[1] += self.zvanja_points[1]
 
-                if not (self.stihovi[0] and self.stihovi[2]) and self.adut_caller in (0, 2):
+                # check for stihaca
+                stihaca = False
+                if not (self.stihovi[0] or self.stihovi[2]):
+                    self.points[1] += self.points[0] + 90
+                    self.points[0] = 0
+                    stihaca = True
+                if not (self.stihovi[1] or self.stihovi[3]):
+                    self.points[0] += self.points[1] + 90
+                    self.points[1] = 0
+                    stihaca = True
+
+                # check if caller failed
+                if self.points[0] <= self.points[1] and self.adut_caller in (0, 2) and not stihaca:
+                    self.points[1] += self.points[0]
                     self.points[0] = None
-                if not (self.stihovi[1] and self.stihovi[3]) and self.adut_caller in (1, 3):
+                elif self.points[1] <= self.points[0] and self.adut_caller in (1, 3) and not stihaca:
+                    self.points[0] += self.points[1]
                     self.points[1] = None
 
     def end_game(self, id_: int) -> None:
@@ -407,13 +422,11 @@ class Bela:
 
             self.games.append(self.points)
 
-            if (
-                    sum(filter(lambda x: x is not None, map(lambda x: x[0], self.games))) > self.max_points or
-                    sum(filter(lambda x: x is not None, map(lambda x: x[1], self.games))) > self.max_points
-            ):
-                pass  # TODO: make the game end
-
-            self.start_new_game()
+            if self.is_match_over():
+                print("MATCH ENDED")
+                self.current_match_over = True
+            else:
+                self.start_new_game()
 
     def start_new_game(self) -> None:
         self.diler += 1
@@ -452,6 +465,7 @@ class Bela:
         self.ready_to_end_game = [False] * 4
 
         self.current_game_over = False
+        self.current_match_over = False
         self.ended_last_turn = False
         
         self.called_bela = False
@@ -548,6 +562,10 @@ class Bela:
 
     def ready_up_player(self, id_: int, value: bool) -> None:
         self.player_data[id_]["ready"] = value
+
+    def is_match_over(self) -> bool:
+        return sum(filter(lambda x: x is not None, map(lambda x: x[0], self.games))) > self.max_points or \
+               sum(filter(lambda x: x is not None, map(lambda x: x[1], self.games))) > self.max_points
 
     def is_player_ready(self, id_: int) -> bool:
         return self.player_data[id_]["ready"]

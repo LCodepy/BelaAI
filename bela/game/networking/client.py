@@ -105,6 +105,7 @@ class Client:
 
         self.activated_turn_end = False
         self.activated_game_over = False
+        self.activated_match_over = False
         self.end_game = False
         self.end_match = False
         self.started_new_game = True
@@ -323,6 +324,16 @@ class Client:
             font_color=Colors.white
         )
 
+        self.game_over_label = Label(
+            self.display,
+            (self.canvas.get_width() // 2, self.canvas.get_height() // 2 - 100),
+            (500, 200),
+            self.assets.font48,
+            text="RUNDA GOTOVA",
+            font_color=Colors.white,
+            bold=True
+        )
+
         self.belot_label = Label(
             self.display,
             (self.canvas.get_width() // 2, self.canvas.get_height() // 2 - 20),
@@ -379,18 +390,21 @@ class Client:
             self.timed_actions[1]["GAME_OVER"] = [True, self.timed_actions_durations["GAME_OVER"], time.time()]
             self.activated_game_over = True
 
+        if self.game.current_match_over and not self.activated_match_over:
+            self.timed_actions[1]["MATCH_OVER"] = [True, self.timed_actions_durations["MATCH_OVER"],
+                                                   "GAME", time.time()]
+            self.activated_match_over = True
+
+        if self.end_game:
+            self.end_current_game()
+
+        if self.end_match:
+            self.end_current_match()
+
         if not self.game.current_game_over:
             self.activated_game_over = False
             if not self.started_new_game:
                 self.start_new_game()
-
-        if self.end_game:
-            self.end_current_game()
-            self.end_game = False
-
-        if self.end_match:
-            self.end_current_match()
-            self.end_match = False
 
         if self.game.called_bela and not self.bela_just_called:
             self.bela_just_called = True
@@ -752,9 +766,11 @@ class Client:
         self.info_canvas.blit(surf2, (0, 0))
 
         final_score = self.game.get_final_game_score()
-        Label.render_text(self.info_canvas, str(final_score[0]), ((self.info_canvas.get_width() + 70) // 4, 465),
+        Label.render_text(self.info_canvas, str(final_score[self.__player % 2]),
+                          ((self.info_canvas.get_width() + 70) // 4, 465),
                           self.assets.font24, self.attributes["__var_info_canvas_final_score_color"])
-        Label.render_text(self.info_canvas, str(final_score[1]), ((3 * self.info_canvas.get_width() - 70) // 4, 465),
+        Label.render_text(self.info_canvas, str(final_score[not self.__player % 2]),
+                          ((3 * self.info_canvas.get_width() - 70) // 4, 465),
                           self.assets.font24, self.attributes["__var_info_canvas_final_score_color"])
 
     def render_game(self) -> None:
@@ -916,6 +932,7 @@ class Client:
         self.render_cards_on_table()
 
         for i in self.switched_cards:
+            if i >= len(cards): continue
             card = cards[i]
             x = self.inventory[i].x
             y = self.inventory[i].y
@@ -924,7 +941,7 @@ class Client:
             self.render_card_outline(card, x, y, self.switched_cards_marker_color)
 
         for i in self.selected_cards_for_bela:
-            if isinstance(i, (int, slice, )):
+            if isinstance(i, (int, slice, )) and i < len(cards):
                 card = cards[i]
                 x = self.inventory[i].x
                 y = self.inventory[i].y
@@ -1106,32 +1123,34 @@ class Client:
                         self.appear_text(t - data[2], data[3], data[4], data[5], data[6], data[1], data[7])
 
             if action == "GAME_OVER" and args[0]:
-                self.display_game_over(t - args[2])
+                if self.game.is_match_over():
+                    self.display_game_over(args[1])
+                else:
+                    self.display_game_over(t - args[2])
                 if t - args[2] >= duration:
-                    if not self.set_game_ended:
-                        print("ended")
-                        self.end_game = True
-                        self.set_game_ended = True
-                    if self.end_match:
+                    self.end_game = True
+                    if not self.game.is_match_over():
                         to_remove.append("GAME_OVER")
-                        if "MATCH_OVER" not in self.timed_actions:
-                            to_add.append(["MATCH_OVER", True, self.timed_actions_durations["MATCH_OVER"], time.time()])
 
             if action == "BELOT" and args[0]:
                 self.display_belot(t - args[2])
                 if t - args[2] >= duration:
-                    to_remove.append("BELOT")
                     if "MATCH_OVER" not in self.timed_actions:
-                        to_add.append(["MATCH_OVER", True, self.timed_actions_durations["MATCH_OVER"], time.time()])
+                        self.activated_match_over = True
+                        to_add.append(["MATCH_OVER", True, self.timed_actions_durations["MATCH_OVER"],
+                                       "BELOT", time.time()])
+                    to_remove.append("BELOT")
 
             if action == "MATCH_OVER" and args[0]:
-                if t - args[2] < duration:
-                    self.display_match_over(t - args[2])
+                if t - args[-1] < duration:
+                    self.display_match_over(t - args[-1], args[2])
+                    to_remove.append("GAME_OVER")
                 else:
                     to_remove.append("MATCH_OVER")
 
         for k in to_remove:
-            self.timed_actions[1].pop(k)
+            if k in self.timed_actions[1]:
+                self.timed_actions[1].pop(k)
 
         for k in to_add:
             self.timed_actions[1][k[0]] = k[1:]
@@ -1140,6 +1159,10 @@ class Client:
         self.data = self.network.send(Commands.END_GAME)
         self.end_game = False
         self.started_new_game = False
+
+    def end_current_match(self) -> None:
+        self.data = self.network.send(Commands.END_MATCH)
+        self.end_match = False
 
     def start_new_game(self) -> None:
         self.cards_on_table_positions_p1 = []
@@ -1164,10 +1187,10 @@ class Client:
 
         self.activated_turn_end = False
         self.activated_game_over = False
+        self.activated_match_over = False
         self.end_game = False
         self.end_match = False
         self.started_new_game = True
-        self.set_game_ended = False
 
         self.last_frame_cards_on_table = []
 
@@ -1213,14 +1236,9 @@ class Client:
         if self.game.get_current_game_state() is GameState.ZVANJE_ADUTA and not self.adut_dalje:
             org_cards = self.get_cards().netalon
 
-        inv_cards = list(map(lambda x: x.card, self.inventory))
-
-        diff = list(set(inv_cards).difference(set(org_cards)))
-        diff2 = list(set(org_cards).difference(set(inv_cards)))
-
         for i, inv_card in enumerate(self.inventory):
-            if inv_card.card in diff:
-                self.inventory[i].card = diff2.pop()
+            if org_cards[i] != inv_card.card:
+                self.inventory[i].card = org_cards[i]
 
     def recheck_zvanja(self) -> None:
         for i, v in enumerate(self.selected_cards):
@@ -1327,6 +1345,8 @@ class Client:
         surf = pygame.Surface(self.canvas.get_size(), pygame.SRCALPHA)
         pygame.draw.rect(surf, (0, 0, 0, 150), self.canvas.get_rect())
 
+        self.game_over_label.set_surface(surf)
+        self.game_over_label.render()
         Label.render_text(
             surf,
             "RUNDA GOTOVA",
@@ -1395,25 +1415,34 @@ class Client:
 
         self.timed_actions_after_canvas.blit(surf, (0, 0))
 
-    def display_match_over(self, current_time: float) -> None:
+    def display_match_over(self, current_time: float, transition_type: str) -> None:
         surf = pygame.Surface(self.canvas.get_size(), pygame.SRCALPHA)
         pygame.draw.rect(surf, (0, 0, 0, 150), self.canvas.get_rect())
 
-        self.belot_label.set_surface(surf)
-        self.belot_label.render()
+        if transition_type == "BELOT":
+            label_1 = self.belot_label
+            id_ = "BELOT_TEXT"
+        elif transition_type == "GAME":
+            label_1 = self.game_over_label
+            id_ = "GAME_OVER_TEXT"
+        else:
+            return
+
+        label_1.set_surface(surf)
+        label_1.render()
 
         self.match_over_label.set_surface(surf)
         self.match_over_label.render()
 
-        if not self.animation_handler.has("#BELOT_TEXT"):
+        if not self.animation_handler.has("#" + id_):
             self.animation_handler.add_animation(
                 AnimationFactory.create_text_shoot_down_animation(
-                    self.belot_label, self.match_over_label,
+                    label_1, self.match_over_label,
                     self.win.get_height() + self.attributes["__var_belot_text_animation_stop_point"]
-                ), id_="#BELOT_TEXT"
+                ), id_="#" + id_
             )
 
-        if self.animation_handler.get_animation("#BELOT_TEXT").is_just_finished():
+        if self.animation_handler.get_animation("#" + id_).is_just_finished():
             str_team1 = self.game.get_nickname(0) + " & " + self.game.get_nickname(2)
             str_team2 = self.game.get_nickname(1) + " & " + self.game.get_nickname(3)
             k1 = len(str_team2) - len(str_team1)

@@ -100,6 +100,18 @@ class ServerControllerSS:
                     except Exception as e:
                         response = str(e)
 
+                if cmnds and cmnds[0].lower() == "p+":
+                    try:
+                        game_idx = 0
+                        idx = int(cmnds[1])
+                        points = int(cmnds[2])
+                        if "-g" in cmnds:
+                            game_idx = int(cmnds[cmnds.index("-g") + 1])
+
+                        self.server.games[game_idx].games.append([points * (1 - idx), points * idx])
+                    except Exception as e:
+                        response = str(e)
+
                 connection.sendall(pickle.dumps(response))
             except socket.error:
                 Log.e("SERVER", "Server controller closed!")

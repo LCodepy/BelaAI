@@ -414,16 +414,15 @@ class Bela:
                     self.points[0] += self.points[1]
                     self.points[1] = None
 
+                self.games.append(self.points)
+
     def end_game(self, id_: int) -> None:
         self.ready_to_end_game[id_] = True
 
         if all(self.ready_to_end_game):
             self.current_game_over = False
 
-            self.games.append(self.points)
-
             if self.is_match_over():
-                print("MATCH ENDED")
                 self.current_match_over = True
             else:
                 self.start_new_game()

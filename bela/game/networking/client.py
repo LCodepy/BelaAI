@@ -106,6 +106,7 @@ class Client:
         self.activated_turn_end = False
         self.activated_game_over = False
         self.activated_match_over = False
+        self.ended_game = False
         self.end_game = False
         self.end_match = False
         self.started_new_game = True
@@ -390,7 +391,7 @@ class Client:
             self.timed_actions[1]["GAME_OVER"] = [True, self.timed_actions_durations["GAME_OVER"], time.time()]
             self.activated_game_over = True
 
-        if self.game.current_match_over and not self.activated_match_over:
+        if self.game.current_match_over and not self.activated_match_over and "GAME_OVER" not in self.timed_actions[1]:
             self.timed_actions[1]["MATCH_OVER"] = [True, self.timed_actions_durations["MATCH_OVER"],
                                                    "GAME", time.time()]
             self.activated_match_over = True
@@ -1123,12 +1124,13 @@ class Client:
                         self.appear_text(t - data[2], data[3], data[4], data[5], data[6], data[1], data[7])
 
             if action == "GAME_OVER" and args[0]:
-                if self.game.is_match_over():
-                    self.display_game_over(args[1])
-                else:
-                    self.display_game_over(t - args[2])
+                self.display_game_over(t - args[2], fade_out=not self.game.is_match_over())
+                print("GAME OVER", "  fade-out: ", not self.game.is_match_over())
+                print("ENDED GAME:", self.end_game)
                 if t - args[2] >= duration:
-                    self.end_game = True
+                    if not self.ended_game:
+                        self.end_game = True
+                        self.ended_game = True
                     if not self.game.is_match_over():
                         to_remove.append("GAME_OVER")
 
@@ -1142,8 +1144,10 @@ class Client:
                     to_remove.append("BELOT")
 
             if action == "MATCH_OVER" and args[0]:
-                if t - args[-1] < duration:
-                    self.display_match_over(t - args[-1], args[2])
+                self.ended_game = False
+                print("MO", t, args[3], duration)
+                if t - args[3] < duration:
+                    self.display_match_over(t - args[3], args[2])
                     to_remove.append("GAME_OVER")
                 else:
                     to_remove.append("MATCH_OVER")
@@ -1188,6 +1192,7 @@ class Client:
         self.activated_turn_end = False
         self.activated_game_over = False
         self.activated_match_over = False
+        self.ended_game = False
         self.end_game = False
         self.end_match = False
         self.started_new_game = True
@@ -1338,8 +1343,10 @@ class Client:
         pygame.draw.rect(surf, (255, 0, 0, alpha), (0, 0, 120, 120), 0, 4)
         self.timed_actions_before_canvas.blit(surf, rect)
 
-    def display_game_over(self, current_time: float) -> None:
-        value = 4 - abs(current_time - 4)
+    def display_game_over(self, current_time: float, fade_out: bool = True) -> None:
+        value = current_time
+        if fade_out:
+            value = 4 - abs(current_time - 4)
         alpha = max(min(int(value * 800), 255), 0)
 
         surf = pygame.Surface(self.canvas.get_size(), pygame.SRCALPHA)

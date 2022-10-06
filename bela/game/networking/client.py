@@ -335,6 +335,14 @@ class Client:
             bold=True
         )
 
+        self.game_over_label2 = Label(
+            self.display,
+            (self.canvas.get_width() // 2, self.canvas.get_height() // 2),
+            (600, 300),
+            self.assets.font24,
+            font_color=Color(200, 200, 200)
+        )
+
         self.belot_label = Label(
             self.display,
             (self.canvas.get_width() // 2, self.canvas.get_height() // 2 - 20),
@@ -391,7 +399,7 @@ class Client:
             self.timed_actions[1]["GAME_OVER"] = [True, self.timed_actions_durations["GAME_OVER"], time.time()]
             self.activated_game_over = True
 
-        if self.game.current_match_over and not self.activated_match_over and "GAME_OVER" not in self.timed_actions[1]:
+        if self.game.current_match_over and not self.activated_match_over:
             self.timed_actions[1]["MATCH_OVER"] = [True, self.timed_actions_durations["MATCH_OVER"],
                                                    "GAME", time.time()]
             self.activated_match_over = True
@@ -1125,8 +1133,6 @@ class Client:
 
             if action == "GAME_OVER" and args[0]:
                 self.display_game_over(t - args[2], fade_out=not self.game.is_match_over())
-                print("GAME OVER", "  fade-out: ", not self.game.is_match_over())
-                print("ENDED GAME:", self.end_game)
                 if t - args[2] >= duration:
                     if not self.ended_game:
                         self.end_game = True
@@ -1145,7 +1151,6 @@ class Client:
 
             if action == "MATCH_OVER" and args[0]:
                 self.ended_game = False
-                print("MO", t, args[3], duration)
                 if t - args[3] < duration:
                     self.display_match_over(t - args[3], args[2])
                     to_remove.append("GAME_OVER")
@@ -1354,26 +1359,21 @@ class Client:
 
         self.game_over_label.set_surface(surf)
         self.game_over_label.render()
-        Label.render_text(
-            surf,
-            "RUNDA GOTOVA",
-            (self.canvas.get_width() // 2, self.canvas.get_height() // 2 - 100),
-            self.assets.font48,
-            (255, 255, 255),
-            bold=True
-        )
 
         str_team1 = self.game.get_nickname(0) + " & " + self.game.get_nickname(2)
         str_team2 = self.game.get_nickname(1) + " & " + self.game.get_nickname(3)
         k1 = len(str_team2) - len(str_team1)
         k2 = -k1
-        Label.render_text(
-            surf,
-            " " * max(k1, 0) + str_team1 + "  -  " + str_team2 + " " * max(k2, 0),
-            (self.canvas.get_width() // 2, self.canvas.get_height() // 2),
-            self.assets.font24,
-            (200, 200, 200)
-        )
+        str_team = " " * max(k1, 0) + str_team1 + "  -  " + str_team2 + " " * max(k2, 0)
+
+        # Label.render_text(
+        #     surf,
+        #     " " * max(k1, 0) + str_team1 + "  -  " + str_team2 + " " * max(k2, 0),
+        #     (self.canvas.get_width() // 2, self.canvas.get_height() // 2),
+        #     self.assets.font24,
+        #     (200, 200, 200)
+        # )
+
         str_p1 = str(self.game.points[0])
         str_p2 = str(self.game.points[1])
         if self.game.points[0] is None:
@@ -1382,13 +1382,20 @@ class Client:
             str_p2 = "\\"
         k1 = len(str_p2) - len(str_p1)
         k2 = -k1
-        Label.render_text(
-            surf,
-            " " * max(k1, 0) + str_p1 + "  -  " + str_p2 + " " * max(k2, 0),
-            (self.canvas.get_width() // 2, self.canvas.get_height() // 2 + 40),
-            self.assets.font24,
-            (200, 200, 200)
-        )
+
+        str_p = " " * max(k1, 0) + str_p1 + "  -  " + str_p2 + " " * max(k2, 0)
+
+        # Label.render_text(
+        #     surf,
+        #     " " * max(k1, 0) + str_p1 + "  -  " + str_p2 + " " * max(k2, 0),
+        #     (self.canvas.get_width() // 2, self.canvas.get_height() // 2 + 40),
+        #     self.assets.font24,
+        #     (200, 200, 200)
+        # )
+
+        self.game_over_label2.set_surface(surf)
+        self.game_over_label2.render()
+        self.game_over_label2.set_text(str_team + " \n " + str_p)
 
         surf.set_alpha(alpha)
 

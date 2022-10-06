@@ -82,7 +82,7 @@ class TextShootDownAnimation(Animation):
 class AnimationFactory:
 
     @staticmethod
-    def create_text_shoot_down_animation(label1: Label, label2: Label, stop: int, y_vel: float = 20) -> Animation:
+    def create_text_shoot_down_animation(label1: Label, label2: Label, stop: int, y_vel: float = 24) -> Animation:
         return TextShootDownAnimation(label1, label2, stop, y_vel)
 
 

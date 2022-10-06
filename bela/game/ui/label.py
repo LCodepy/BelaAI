@@ -31,6 +31,12 @@ class Label:
 
         line = 0
         for word in words:
+            if len(word) == 1:
+                print(ascii(word))
+            if word == "\n":
+                self.lines.append("")
+                line += 1
+                continue
             if (
                 self.font.render(self.lines[line] + word, self.bold, self.font_color.c).get_width() > self.size[0]
                 and self.lines[line]

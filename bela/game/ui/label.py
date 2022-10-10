@@ -26,26 +26,25 @@ class Label:
         self.update_text()
 
     def update_text(self):
-        words = self.text.split()
+        words = self.text.split(" ")
         self.lines = [""]
 
         line = 0
         for word in words:
-            if len(word) == 1:
-                print(ascii(word))
             if word == "\n":
+                self.lines[line] = self.lines[line][:-1]
                 self.lines.append("")
                 line += 1
                 continue
             if (
-                self.font.render(self.lines[line] + word, self.bold, self.font_color.c).get_width() > self.size[0]
+                self.font.render(self.lines[line], self.bold, self.font_color.c).get_width() > self.size[0]
                 and self.lines[line]
             ):
+                self.lines[line] = self.lines[line][:-1]
                 self.lines.append("")
                 line += 1
-                self.lines[line-1] = self.lines[line-1][:-1]
             self.lines[line] += word + " "
-        self.lines[line - 1] = self.lines[line - 1][:-1]
+        self.lines[line] = self.lines[line][:-1]
 
         self.lines = list(filter(lambda l: l, self.lines))
 

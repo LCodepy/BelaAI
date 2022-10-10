@@ -54,12 +54,13 @@ class AnimationHandler:
 
 class TextShootDownAnimation(Animation):
 
-    def __init__(self, label1: Label, label2: Label, stop: int, y_vel: float) -> None:
+    def __init__(self, label1: Label, label2: Label, stop: int, y_vel: float, extra_labels: list[Label]) -> None:
         super().__init__()
         self.label1 = label1
         self.label2 = label2
         self.stop = stop
         self.y_vel = y_vel
+        self.extra_labels = [] or extra_labels
 
         self.label1_y = self.label1.get_pos()[1]
         self.label2_y = self.label2.get_pos()[1]
@@ -77,13 +78,16 @@ class TextShootDownAnimation(Animation):
             self.label2.move(y=self.label2_y)
         if self.label2_y > self.label1_y - self.label1.get_size()[1] // 2:
             self.label1.move(y=int(self.label1.get_pos()[1] + self.y_vel))
+            for label in self.extra_labels:
+                label.move(y=int(label.get_pos()[1] + self.y_vel))
 
 
 class AnimationFactory:
 
     @staticmethod
-    def create_text_shoot_down_animation(label1: Label, label2: Label, stop: int, y_vel: float = 24) -> Animation:
-        return TextShootDownAnimation(label1, label2, stop, y_vel)
+    def create_text_shoot_down_animation(label1: Label, label2: Label, stop: int, y_vel: float = 24,
+                                         extra_labels: list[Label] = None) -> Animation:
+        return TextShootDownAnimation(label1, label2, stop, y_vel, extra_labels)
 
 
 

@@ -456,7 +456,8 @@ class Client:
         self.sort_cards_button.update(self.event_handler)
 
     def update_score(self) -> None:
-        if not pygame.Rect(35, 210, self.info_canvas.get_width() - 70, 240).collidepoint(self.event_handler.get_pos()):
+        if not pygame.Rect(self.canvas.get_width() + 35, 210,
+                           self.info_canvas.get_width() - 70, 240).collidepoint(self.event_handler.get_pos()):
             return
 
         if self.event_handler.scrolls["up"]:
@@ -1152,8 +1153,10 @@ class Client:
             if action == "MATCH_OVER" and args[0]:
                 self.ended_game = False
                 if t - args[3] < duration:
-                    self.display_match_over(t - args[3], args[2])
-                    to_remove.append("GAME_OVER")
+                    if "GAME_OVER" in self.timed_actions[1]:
+                        to_remove.append("GAME_OVER")
+                    else:
+                        self.display_match_over(t - args[3], args[2])
                 else:
                     to_remove.append("MATCH_OVER")
 
@@ -1366,14 +1369,6 @@ class Client:
         k2 = -k1
         str_team = " " * max(k1, 0) + str_team1 + "  -  " + str_team2 + " " * max(k2, 0)
 
-        # Label.render_text(
-        #     surf,
-        #     " " * max(k1, 0) + str_team1 + "  -  " + str_team2 + " " * max(k2, 0),
-        #     (self.canvas.get_width() // 2, self.canvas.get_height() // 2),
-        #     self.assets.font24,
-        #     (200, 200, 200)
-        # )
-
         str_p1 = str(self.game.points[0])
         str_p2 = str(self.game.points[1])
         if self.game.points[0] is None:
@@ -1384,14 +1379,6 @@ class Client:
         k2 = -k1
 
         str_p = " " * max(k1, 0) + str_p1 + "  -  " + str_p2 + " " * max(k2, 0)
-
-        # Label.render_text(
-        #     surf,
-        #     " " * max(k1, 0) + str_p1 + "  -  " + str_p2 + " " * max(k2, 0),
-        #     (self.canvas.get_width() // 2, self.canvas.get_height() // 2 + 40),
-        #     self.assets.font24,
-        #     (200, 200, 200)
-        # )
 
         self.game_over_label2.set_surface(surf)
         self.game_over_label2.render()
@@ -1435,15 +1422,22 @@ class Client:
 
         if transition_type == "BELOT":
             label_1 = self.belot_label
+            label_2 = None
             id_ = "BELOT_TEXT"
         elif transition_type == "GAME":
             label_1 = self.game_over_label
+            label_2 = self.game_over_label2
             id_ = "GAME_OVER_TEXT"
         else:
             return
 
+        extra_labels = None
         label_1.set_surface(surf)
         label_1.render()
+        if label_2:
+            label_2.set_surface(surf)
+            label_2.render()
+            extra_labels = [label_2]
 
         self.match_over_label.set_surface(surf)
         self.match_over_label.render()
@@ -1452,7 +1446,8 @@ class Client:
             self.animation_handler.add_animation(
                 AnimationFactory.create_text_shoot_down_animation(
                     label_1, self.match_over_label,
-                    self.win.get_height() + self.attributes["__var_belot_text_animation_stop_point"]
+                    self.win.get_height() + self.attributes["__var_belot_text_animation_stop_point"],
+                    extra_labels=extra_labels
                 ), id_="#" + id_
             )
 

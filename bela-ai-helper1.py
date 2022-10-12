@@ -1,10 +1,12 @@
-import os, time
+import os
 from _thread import start_new_thread as start
 import win32gui
 
 
 path = r"C:\Users\jojog\Desktop\Lovro\BelaAI"
-
+if not os.path.exists(path):
+    path = r"C:\Users\SKECPC\Desktop\ROOT\Private[id=0]\Programming[id=0,class=PROG]\Big_projects[type=group]\Python[type=group]\BelaAI"
+path = ""
 
 start(os.system, (os.path.join(path, "server_launcher.py"), ))
 for i in range(4):

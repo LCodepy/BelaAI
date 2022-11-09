@@ -124,6 +124,8 @@ class ServerControllerCS:
         self.network = Network(buffer=4096, port=22223)
         self.network.connect()
 
+        Log.clear()
+
         while True:
             command = Log.input("", "Server Controller -v 1.0/~cmd $ ")
 

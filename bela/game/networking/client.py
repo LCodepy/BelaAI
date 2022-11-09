@@ -11,6 +11,7 @@ from bela.game.networking.commands import Commands
 from bela.game.ui.button import Button
 from bela.game.utils.animations import AnimationHandler, AnimationFactory
 from bela.game.utils.assets import Assets
+from bela.game.utils.gamestates import ClientGameStates
 from bela.game.utils.shapes import RotatingRect
 from bela.game.utils.timer import TimerHandler
 from ..ui.label import Label
@@ -44,6 +45,7 @@ class Client:
 
         self.canvas = pygame.Surface(config.CANVAS_SIZE, pygame.SRCALPHA)
         self.info_canvas = pygame.Surface(config.INFO_CANVAS_SIZE, pygame.SRCALPHA)
+        self.match_over_menu_canvas = pygame.Surface(config.CANVAS_SIZE, pygame.SRCALPHA)
 
         self.timed_actions_before_canvas = pygame.Surface(self.canvas.get_size(), pygame.SRCALPHA)
         self.timed_actions_after_canvas = pygame.Surface(self.canvas.get_size(), pygame.SRCALPHA)
@@ -66,6 +68,8 @@ class Client:
         self.__fps = 60
 
         self.data: dict[str, Any] = {"game": None}
+
+        self.game_state: ClientGameStates = ClientGameStates.UNDEFINED
 
         self.label_dots = 0
 
@@ -147,7 +151,8 @@ class Client:
             "__var_info_canvas_text_color": (255, 255, 255),
             "__var_info_canvas_dark_text_color": (200, 200, 200),
             "__var_info_canvas_score_color": (180, 180, 180),
-            "__var_info_canvas_final_score_color": (220, 220, 220)
+            "__var_info_canvas_final_score_color": (220, 220, 220),
+            "__var_match_over_menu_color": (0, 255, 0)
         }
 
         # Event functions
@@ -214,7 +219,7 @@ class Client:
             self.display,
             (520, 180),
             (300, 200),
-            pygame.font.SysFont("comicsans", self.attributes["__var_title_font_size"]),
+            pygame.font.SysFont("consolas", self.attributes["__var_title_font_size"]),
             text="BELA",
             font_color=Colors.white,
             bold=True
@@ -252,7 +257,7 @@ class Client:
             self.display,
             (self.display.get_width() // 2, self.display.get_height() // 2),
             (400, 200),
-            pygame.font.SysFont("comicsans", self.attributes["__var_waiting_label_font_size"]),
+            pygame.font.SysFont("consolas", self.attributes["__var_waiting_label_font_size"]),
             text="Pričekajte",
             font_color=Colors.white,
             bold=True,
@@ -327,7 +332,7 @@ class Client:
 
         self.game_over_label = Label(
             self.display,
-            (self.canvas.get_width() // 2, self.canvas.get_height() // 2 - 100),
+            (self.canvas.get_width() // 2, self.canvas.get_height() // 2 - 20),
             (500, 200),
             self.assets.font48,
             text="RUNDA GOTOVA",
@@ -337,7 +342,7 @@ class Client:
 
         self.game_over_label2 = Label(
             self.display,
-            (self.canvas.get_width() // 2, self.canvas.get_height() // 2),
+            (self.canvas.get_width() // 2, self.canvas.get_height() // 2 + 40),
             (600, 300),
             self.assets.font24,
             font_color=Color(200, 200, 200)
@@ -347,7 +352,7 @@ class Client:
             self.display,
             (self.canvas.get_width() // 2, self.canvas.get_height() // 2 - 20),
             (500, 200),
-            self.assets.font64,
+            self.assets.font48,
             text="BELOT",
             font_color=Colors.white,
             bold=True
@@ -386,20 +391,39 @@ class Client:
 
         self.update_timed_actions()
 
-        if not self.game.is_player_ready(self.__player):
-            self.update_menu()
+        self.update_game_states()
 
-        if self.game.is_ready():
+        if self.game_state is ClientGameStates.GAME:
             self.update_game()
-        elif self.game.is_player_ready(self.__player):
+        elif self.game_state is ClientGameStates.LOBBY:
             self.update_lobby()
+        elif self.game_state is ClientGameStates.MAIN_MENU:
+            self.update_menu()
+        elif self.game_state is ClientGameStates.MATCH_OVER_MENU:
+            self.update_match_over_menu()
+
+    def update_game_states(self) -> None:
+        self.game_state = ClientGameStates.UNDEFINED
+
+        if self.game_state is not ClientGameStates.MATCH_OVER_MENU:
+            if self.game.is_ready():
+                self.game_state = ClientGameStates.GAME
+            elif self.game.is_player_ready(self.__player):
+                self.game_state = ClientGameStates.LOBBY
+            elif not self.game.is_player_ready(self.__player):
+                self.game_state = ClientGameStates.MAIN_MENU
+        if (anim := self.animation_handler.get_animation("#MATCH_OVER_SCREEN_FALL")) and anim.is_finished():
+            self.animation_handler.remove_animation("#MATCH_OVER_SCREEN_FALL")
+            if "MATCH_OVER" in self.timed_actions[1]:
+                self.timed_actions[1].pop("MATCH_OVER")
+            self.game_state = ClientGameStates.MATCH_OVER_MENU
 
     def update_game(self) -> None:
         if self.game.current_game_over and not self.activated_game_over:
             self.timed_actions[1]["GAME_OVER"] = [True, self.timed_actions_durations["GAME_OVER"], time.time()]
             self.activated_game_over = True
 
-        if self.game.current_match_over and not self.activated_match_over:
+        if self.game.current_match_over and not self.activated_match_over and not self.game.called_belot:
             self.timed_actions[1]["MATCH_OVER"] = [True, self.timed_actions_durations["MATCH_OVER"],
                                                    "GAME", time.time()]
             self.activated_match_over = True
@@ -491,6 +515,10 @@ class Client:
 
     def update_lobby(self) -> None:
         self.player_count_label.set_text("Spremni igrači: " + str(self.game.get_ready_player_count()) + "/4")
+
+    def update_match_over_menu(self) -> None:
+        # TODO: now
+        print(self.game_state, self.timed_actions, self.animation_handler.get_animation("#MATCH_OVER_SCREEN_FALL"))
 
     def update_cards(self) -> None:
         self.update_cards_in_inventory()
@@ -674,11 +702,11 @@ class Client:
 
         self.render_timed_actions()
 
-        if self.game.is_ready():
+        if self.game_state is ClientGameStates.GAME:
             self.render_game()
-        elif self.game.is_player_ready(self.__player):
+        elif self.game_state is ClientGameStates.LOBBY:
             self.render_lobby()
-        else:
+        elif self.game_state is ClientGameStates.MAIN_MENU:
             self.render_menu()
 
         self.render_info()
@@ -691,7 +719,7 @@ class Client:
 
     def render_info(self) -> None:
         pygame.draw.line(self.info_canvas, self.attributes["__var_info_canvas_line_color"],
-                         (0, 8), (0, self.info_canvas.get_height() - 8))
+                         (0, 0), (0, self.info_canvas.get_height()))  # (0, 9) (0, height - 8)
 
         if not self.game.is_ready():
             return
@@ -813,6 +841,11 @@ class Client:
                     self.render_zvanja_points()
                 self.render_game_zvanje()
 
+        if anim := self.animation_handler.get_animation("#MATCH_OVER_SCREEN_FALL"):
+            self.match_over_menu_canvas.fill(self.attributes["__var_match_over_menu_color"])
+            self.canvas.blit(self.match_over_menu_canvas,
+                             (0, anim.get_current_data()))
+
     def render_calling_adut(self) -> None:
         surf = pygame.Surface(self.display.get_size(), pygame.SRCALPHA)
         surf.fill((0, 0, 0))
@@ -899,6 +932,9 @@ class Client:
 
         self.waiting_lobby_label.render()
         self.player_count_label.render()
+
+    def render_match_over_menu(self) -> None:
+        pass  # TODO: now
 
     def render_players(self) -> None:
         for i in range(4):
@@ -1116,7 +1152,7 @@ class Client:
         to_remove = []
         to_add = []
 
-        for action, args in self.timed_actions[1].items():
+        for action, args in sorted(self.timed_actions[1].items(), key=lambda x: x[0] == "APPEAR_TEXT"):
             t = time.time()
             duration = 0
             if len(args) > 1:
@@ -1124,13 +1160,6 @@ class Client:
 
             if action == "DISPLAY_CARD_ERROR" and args[0] and t - args[2] < duration:
                 self.display_card_error(t - args[2])
-
-            if action == "APPEAR_TEXT":
-                for data in args:
-                    if data[0] and t - data[2] < data[1]:
-                        if data[7] is None:
-                            data[7] = self.assets.font24
-                        self.appear_text(t - data[2], data[3], data[4], data[5], data[6], data[1], data[7])
 
             if action == "GAME_OVER" and args[0]:
                 self.display_game_over(t - args[2], fade_out=not self.game.is_match_over())
@@ -1152,13 +1181,23 @@ class Client:
 
             if action == "MATCH_OVER" and args[0]:
                 self.ended_game = False
-                if t - args[3] < duration:
-                    if "GAME_OVER" in self.timed_actions[1]:
-                        to_remove.append("GAME_OVER")
-                    else:
-                        self.display_match_over(t - args[3], args[2])
+                if "GAME_OVER" in self.timed_actions[1]:
+                    to_remove.append("GAME_OVER")
                 else:
-                    to_remove.append("MATCH_OVER")
+                    self.display_match_over(t - args[3], args[2])
+
+                if t - args[3] >= duration:
+                    self.animation_handler.add_animation(
+                        AnimationFactory.create_falling_screen_animation(self.canvas.get_size()),
+                        id_="#MATCH_OVER_SCREEN_FALL"
+                    )
+
+            if action == "APPEAR_TEXT":
+                for data in args:
+                    if data[0] and t - data[2] < data[1]:
+                        if data[7] is None:
+                            data[7] = self.assets.font24
+                        self.appear_text(t - data[2], data[3], data[4], data[5], data[6], data[1], data[7])
 
         for k in to_remove:
             if k in self.timed_actions[1]:
@@ -1344,7 +1383,7 @@ class Client:
 
     def display_card_error(self, current_time: float) -> None:
         value = 0.2 - abs(current_time - 0.2)
-        alpha = value * 500
+        alpha = max(min(int(value * 500), 255), 0)
 
         rect = pygame.Rect(self.canvas.get_width() // 2 - 60, self.canvas.get_height() // 2 - 60, 120, 120)
         surf = pygame.Surface((120, 120), pygame.SRCALPHA)
@@ -1456,9 +1495,9 @@ class Client:
             str_team2 = self.game.get_nickname(1) + " & " + self.game.get_nickname(3)
             k1 = len(str_team2) - len(str_team1)
             k2 = -k1
-            self.add_appearing_text((self.win.get_width() // 2, self.win.get_height() // 2 + 20),
+            self.add_appearing_text((self.canvas.get_width() // 2, self.canvas.get_height() // 2 + 50),
                                     " " * max(k1, 0) + str_team1 + "  -  " + str_team2 + " " * max(k2, 0),
-                                    (200, 200, 200), 4, font=self.assets.font24)
+                                    (200, 200, 200), 6, font=self.assets.font24)
 
             str_p1 = str(self.game.points[0])
             str_p2 = str(self.game.points[1])
@@ -1468,9 +1507,9 @@ class Client:
                 str_p2 = "\\"
             k1 = len(str_p2) - len(str_p1)
             k2 = -k1
-            self.add_appearing_text((self.win.get_width() // 2, self.win.get_height() // 2 + 20),
+            self.add_appearing_text((self.canvas.get_width() // 2, self.canvas.get_height() // 2 + 80),
                                     " " * max(k1, 0) + str_p1 + "  -  " + str_p2 + " " * max(k2, 0),
-                                    (200, 200, 200), 4, font=self.assets.font24)
+                                    (200, 200, 200), 6, font=self.assets.font24)
 
         self.timed_actions_after_canvas.blit(surf, (0, 0))
 

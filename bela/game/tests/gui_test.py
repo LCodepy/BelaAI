@@ -12,76 +12,55 @@ clock = pygame.time.Clock()
 event_handler = EventHandler()
 
 
-class L1:
+class Faller:
 
     def __init__(self) -> None:
-        self.label_x, self.label_y = win.get_width() // 2, -100
-        self.y_acc = 0.001
-        self.y_vel = 0
+        self.color = (0, 200, 20)
+        self.w, self.h = win.get_size()
 
-        self.label = Label(win, (self.label_x, self.label_y), (300, 100), pygame.font.SysFont("Arial", 60),
-                           text="BELOT", font_color=Colors.white)
+        self.y = -self.h
+        self.vel = 10
+        self.g = 9.8 * 10**-1
+        self.acc = self.g
+
+        self.surf = pygame.Surface(win.get_size())
 
     def update(self) -> None:
-        if self.label_y >= 200:
-            self.y_vel = -self.y_vel
-            self.y_acc *= 2
+        self.just_finished = False
 
-        if self.y_acc >= 0.05:
-            self.y_acc = 0
-            self.y_vel = 0
+        if self.finished:
+            return
 
-        self.y_vel = min(self.y_vel + self.y_acc, 3)
-        self.label_y += self.y_vel
+        self.vel += self.acc
 
-        self.label.move(y=self.label_y)
+        self.y += self.vel
 
-    def render(self) -> None:
-        self.label.render()
+        if self.y >= self.h:
+            self.y = self.h
 
+            self.vel = -self.vel * 0.5
 
-class L2:
-
-    def __init__(self) -> None:
-        self.label1_x, self.label1_y = win.get_width() // 2, 300
-        self.label2_x, self.label2_y = win.get_width() // 2, -200
-
-        self.label1 = Label(win, (self.label1_x, self.label1_y), (300, 100), pygame.font.SysFont("Arial", 60),
-                            text="BELOT", font_color=Colors.white)
-        self.label2 = Label(win, (self.label2_x, self.label2_y), (500, 100), pygame.font.SysFont("Arial", 60),
-                            text="MATCH OVER", font_color=Colors.white)
-
-        self.stop = 800
-        self.y_vel = 22
-
-    def update(self) -> bool:
-        if self.label1_y >= self.stop:
-            return False
-        if self.label2_y < self.label1_y:
-            self.label2_y += self.y_vel
-            self.label2.move(y=self.label2_y)
-        if self.label2_y > self.label1_y - self.label1.get_size()[1] // 2:
-            self.label1.move(y=int(self.label1.get_pos()[1] + self.y_vel))
-        return True
+            if abs(self.vel) < self.acc and self.y == self.h:
+                self.finished = True
+                self.just_finished = True
 
     def render(self) -> None:
-        self.label1.render()
-        self.label2.render()
+        self.surf.fill(self.color)
+        win.blit(self.surf, (0, self.y - self.h))
 
 
-label = L2()
+faller = Faller()
 
 
 running = True
 while running:
 
-    label.update()
+    faller.update()
 
     win.fill((0, 0, 20))
 
     # rendering
-
-    label.render()
+    faller.render()
 
     pygame.display.update()
     clock.tick(60)

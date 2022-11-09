@@ -1,7 +1,11 @@
 import os
 from _thread import start_new_thread as start
+
+import pyautogui as pyautogui
 import win32gui
 
+
+scr_w, scr_h = pyautogui.size()
 
 path = r"C:\Users\jojog\Desktop\Lovro\BelaAI"
 if not os.path.exists(path):
@@ -27,7 +31,7 @@ hwnd4 = win32gui.FindWindow(None, "Bela - Client 3 | Game 0")
 
 _, _, w, h = win32gui.GetWindowRect(hwnd1)
 
-win32gui.MoveWindow(hwnd1, 0, 0, w, h, 0)
-win32gui.MoveWindow(hwnd2, 0, h//2, w, h, 0)
-win32gui.MoveWindow(hwnd3, w//2+200, h//2, w, h, 0)
-win32gui.MoveWindow(hwnd4, w//2+200, 0, w, h, 0)
+win32gui.MoveWindow(hwnd1, -scr_w, 0, w, h, 0)
+win32gui.MoveWindow(hwnd2, -scr_w, h//2, w, h, 0)
+win32gui.MoveWindow(hwnd3, -scr_w+w//2+200, h//2, w, h, 0)
+win32gui.MoveWindow(hwnd4, -scr_w+w//2+200, 0, w, h, 0)

@@ -163,7 +163,7 @@ class Bela:
             if card[1] == self.adut and strongest_card[1] == self.adut and \
                     self.is_card_greater(strongest_card, card):  # played either < or > then strongest_card
                 return not self.player_has_higher(strongest_card, id_)
-        elif self.is_card_greater(card, strongest_card):  # played the card stronger then the strongest_card
+        elif self.is_card_greater(card, strongest_card):  # played the card stronger than the strongest_card
             return True
         else:
             return not self.player_has_higher(strongest_card, id_)  # player either has or doesn't have bigger card

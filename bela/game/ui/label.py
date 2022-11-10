@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Union
 
 import pygame
 
@@ -9,7 +9,7 @@ pygame.font.init()
 
 class Label:
 
-    def __init__(self, display: pygame.Surface, position: Tuple[int, int], size: Tuple[int, int], font, text: str = "",
+    def __init__(self, display: pygame.Surface, position: Tuple[int, int], size: Union[Tuple[int, int], str], font, text: str = "",
                  font_color: Color = Colors.black, bold: bool = False, text_orientation: str = "center",
                  padding: int = 10):
         self.display = display
@@ -21,6 +21,9 @@ class Label:
         self.font = font
         self.text_orientation = text_orientation
         self.padding = padding
+
+        if self.size == "fit":
+            self.size = (float("inf"), float("inf"))
 
         self.lines = [""]
         self.update_text()

@@ -152,7 +152,7 @@ class Client:
             "__var_info_canvas_dark_text_color": (200, 200, 200),
             "__var_info_canvas_score_color": (180, 180, 180),
             "__var_info_canvas_final_score_color": (220, 220, 220),
-            "__var_match_over_menu_color": (0, 255, 0)
+            "__var_match_over_menu_color": (0, 0, 30)
         }
 
         # Event functions
@@ -216,7 +216,7 @@ class Client:
         # GUI Elements
 
         self.title = Label(
-            self.display,
+            self.canvas,
             (520, 180),
             (300, 200),
             pygame.font.SysFont("consolas", self.attributes["__var_title_font_size"]),
@@ -226,7 +226,7 @@ class Client:
         )
 
         self.play_btn = Button(
-            self.display,
+            self.canvas,
             (0, 530),
             (650, 70),
             self.assets.font32,
@@ -240,7 +240,7 @@ class Client:
         ).set_on_click_listener(on_play_btn_click, self)
 
         self.options_btn = Button(
-            self.display,
+            self.canvas,
             (-100, 450),
             (650, 70),
             self.assets.font32,
@@ -254,8 +254,8 @@ class Client:
         ).set_on_click_listener(on_options_btn_click, self)
 
         self.waiting_lobby_label = Label(
-            self.display,
-            (self.display.get_width() // 2, self.display.get_height() // 2),
+            self.canvas,
+            (self.canvas.get_width() // 2, self.canvas.get_height() // 2),
             (400, 200),
             pygame.font.SysFont("consolas", self.attributes["__var_waiting_label_font_size"]),
             text="Pričekajte",
@@ -264,8 +264,8 @@ class Client:
         )
 
         self.player_count_label = Label(
-            self.display,
-            (self.display.get_width() // 2, self.display.get_height() // 2 + 80),
+            self.canvas,
+            (self.canvas.get_width() // 2, self.canvas.get_height() // 2 + 80),
             (700, 200),
             self.assets.font48,
             text="Spremni igrači: 0/4",
@@ -274,64 +274,70 @@ class Client:
         )
 
         self.sort_cards_button = Button(
-            self.display,
+            self.canvas,
             (120, 550),
             (160, 30),
             self.assets.font18,
             text="SORTIRAJ KARTE",
-            font_color=Colors.white
+            font_color=Colors.white,
+            bold=True
         ).set_on_click_listener(on_sort_cards_btn_click, self)
 
         types = ["karo", "pik", "herc", "tref"]
         self.call_adut_buttons = [
             Button(
-                self.display,
-                (self.display.get_width() // 2 + 100 * (0.5 - i), self.display.get_height() // 2),
+                self.canvas,
+                (self.canvas.get_width() // 2 + 100 * (0.5 - i), self.canvas.get_height() // 2),
                 (50, 50),
                 self.assets.font18,
                 text=types[i + 1],
-                font_color=Colors.white
+                font_color=Colors.white,
+                bold=True
             ).set_on_click_listener(on_adut_btn_click, self, pass_self=True) for i in range(-1, 3)
         ]
 
         self.dalje_button = Button(
-            self.display,
-            (self.display.get_width() // 2, self.display.get_height() // 2 + 70),
+            self.canvas,
+            (self.canvas.get_width() // 2, self.canvas.get_height() // 2 + 70),
             (70, 36),
             self.assets.font18,
             text="DALJE",
-            font_color=Colors.white
+            font_color=Colors.white,
+            bold=True
         ).set_on_click_listener(on_dalje_btn_click, self)
 
         self.nema_zvanja_button = Button(
-            self.display,
-            (self.display.get_width() // 2 - 100, self.display.get_height() // 2),
+            self.canvas,
+            (self.canvas.get_width() // 2 - 100, self.canvas.get_height() // 2),
             (140, 30),
             self.assets.font18,
             text="NEMAM ZVANJA",
-            font_color=Colors.white
+            font_color=Colors.white,
+            bold=True
         ).set_on_click_listener(on_nema_zvanja_btn_click, self)
 
         self.ima_zvanja_button = Button(
-            self.display,
-            (self.display.get_width() // 2 + 100, self.display.get_height() // 2),
+            self.canvas,
+            (self.canvas.get_width() // 2 + 100, self.canvas.get_height() // 2),
             (140, 30),
             self.assets.font18,
             text="ZOVEM",
-            font_color=Colors.white
+            font_color=Colors.white,
+            bold=True
         ).set_on_click_listener(on_ima_zvanja_btn_click, self)
 
         self.zvanja_label = Label(
-            self.display,
-            (self.display.get_width() // 2, self.display.get_height() // 2 - 60),
+            self.canvas,
+            (self.canvas.get_width() // 2, self.canvas.get_height() // 2 - 60),
             (400, 100),
             self.assets.font32,
             text="OZNAČITE ZVANJA",
-            font_color=Colors.white
+            font_color=Colors.white,
+            bold=True
         )
 
         self.game_over_label = Label(
-            self.display,
+            self.canvas,
             (self.canvas.get_width() // 2, self.canvas.get_height() // 2 - 20),
             (500, 200),
             self.assets.font48,
@@ -341,15 +347,16 @@ class Client:
         )
 
         self.game_over_label2 = Label(
-            self.display,
+            self.canvas,
             (self.canvas.get_width() // 2, self.canvas.get_height() // 2 + 40),
             (600, 300),
             self.assets.font24,
-            font_color=Color(200, 200, 200)
+            font_color=Color(200, 200, 200),
+            bold=True
         )
 
         self.belot_label = Label(
-            self.display,
+            self.canvas,
             (self.canvas.get_width() // 2, self.canvas.get_height() // 2 - 20),
             (500, 200),
             self.assets.font48,
@@ -359,13 +366,49 @@ class Client:
         )
 
         self.match_over_label = Label(
-            self.display,
+            self.canvas,
             (self.canvas.get_width() // 2, -300),
             (500, 200),
             self.assets.font64,
             text="IGRA GOTOVA",
             font_color=Colors.white,
             bold=True
+        )
+
+        self.match_over_menu_title = Label(
+            self.match_over_menu_canvas,
+            (self.canvas.get_width() // 2, 200),
+            (500, 200),
+            self.assets.font64,
+            text="IGRA ZAVRŠENA",
+            font_color=Colors.white,
+            bold=True
+        )
+
+        self.menu_return_button = Button(
+            self.match_over_menu_canvas,
+            (self.canvas.get_width() // 2, 375),
+            (300, 50),
+            self.assets.font32,
+            text="MAIN MENU",
+            font_color=Colors.white.darker(60),
+            bold=True,
+            color=Color(150, 150, 150, 60),
+            border_radius=10,
+            border_color=Color(150, 150, 150)
+        )
+
+        self.menu_play_again_button = Button(
+            self.match_over_menu_canvas,
+            (self.canvas.get_width() // 2, 450),
+            (300, 50),
+            self.assets.font32,
+            text="IGRAJ PONOVO",
+            font_color=Colors.white.darker(60),
+            bold=True,
+            color=Color(150, 150, 150, 60),
+            border_radius=10,
+            border_color=Color(150, 150, 150)
         )
 
         """-----------------------------------MAIN LOOP---------------------------------"""
@@ -403,9 +446,11 @@ class Client:
             self.update_match_over_menu()
 
     def update_game_states(self) -> None:
-        self.game_state = ClientGameStates.UNDEFINED
+        #self.game_state = ClientGameStates.MATCH_OVER_MENU
 
         if self.game_state is not ClientGameStates.MATCH_OVER_MENU:
+            self.game_state = ClientGameStates.UNDEFINED
+
             if self.game.is_ready():
                 self.game_state = ClientGameStates.GAME
             elif self.game.is_player_ready(self.__player):
@@ -518,7 +563,9 @@ class Client:
 
     def update_match_over_menu(self) -> None:
         # TODO: now
-        print(self.game_state, self.timed_actions, self.animation_handler.get_animation("#MATCH_OVER_SCREEN_FALL"))
+
+        self.menu_return_button.update(self.event_handler)
+        self.menu_play_again_button.update(self.event_handler)
 
     def update_cards(self) -> None:
         self.update_cards_in_inventory()
@@ -697,6 +744,7 @@ class Client:
         self.win.fill(Colors.white.c)
         self.canvas.fill(self.background_color)
         self.info_canvas.fill(self.background_color)
+        self.match_over_menu_canvas.fill(self.attributes["__var_match_over_menu_color"])
 
         # Draw here
 
@@ -708,6 +756,8 @@ class Client:
             self.render_lobby()
         elif self.game_state is ClientGameStates.MAIN_MENU:
             self.render_menu()
+        elif self.game_state is ClientGameStates.MATCH_OVER_MENU:
+            self.render_match_over_menu()
 
         self.render_info()
 
@@ -724,26 +774,27 @@ class Client:
         if not self.game.is_ready():
             return
         Label.render_text(self.info_canvas, "INFO", (10, 10), self.assets.font24,
-                          self.attributes["__var_info_canvas_text_color"], centered=False)
+                          self.attributes["__var_info_canvas_text_color"], bold=True, centered=False)
         pygame.draw.line(self.info_canvas, self.attributes["__var_info_canvas_line_color"],
                          (8, 30), (self.info_canvas.get_width() - 8, 30))
         Label.render_text(
             self.info_canvas,
             "NA POTEZU: " + str(self.game.get_nickname(self.game.player_turn)
                                 if self.game.player_turn != -1 else ""),
-            (10, 40), self.assets.font18, self.attributes["__var_info_canvas_dark_text_color"], centered=False
+            (10, 40), self.assets.font18, self.attributes["__var_info_canvas_dark_text_color"],
+            bold=True, centered=False
         )
         Label.render_text(
             self.info_canvas, "ADUT: " + str(self.game.adut), (10, 60), self.assets.font18,
-            self.attributes["__var_info_canvas_dark_text_color"], centered=False
+            self.attributes["__var_info_canvas_dark_text_color"], bold=True, centered=False
         )
         Label.render_text(
             self.info_canvas, "GAMESTATE: " + str(self.game.get_current_game_state()).split(".")[1], (10, 80),
-            self.assets.font18, self.attributes["__var_info_canvas_dark_text_color"], centered=False
+            self.assets.font18, self.attributes["__var_info_canvas_dark_text_color"], bold=True, centered=False
         )
 
         Label.render_text(self.info_canvas, "BODOVI", (10, 140), self.assets.font24,
-                          self.attributes["__var_info_canvas_text_color"], centered=False)
+                          self.attributes["__var_info_canvas_text_color"], bold=True, centered=False)
         pygame.draw.line(self.info_canvas, self.attributes["__var_info_canvas_line_color"],
                          (8, 160), (self.info_canvas.get_width() - 8, 160))
 
@@ -754,9 +805,9 @@ class Client:
         pygame.draw.rect(self.info_canvas, (10, 30, 50), [35, y - 20, self.info_canvas.get_width() - 70, 30])
 
         Label.render_text(self.info_canvas, "MI", ((self.info_canvas.get_width() + 70) // 4, y),
-                          self.assets.font24, self.attributes["__var_info_canvas_text_color"])
+                          self.assets.font24, self.attributes["__var_info_canvas_text_color"], bold=True)
         Label.render_text(self.info_canvas, "VI", ((3 * self.info_canvas.get_width() - 70) // 4, y),
-                          self.assets.font24, self.attributes["__var_info_canvas_text_color"])
+                          self.assets.font24, self.attributes["__var_info_canvas_text_color"], bold=True)
 
         pygame.draw.line(self.info_canvas, self.attributes["__var_info_canvas_line_color"],
                          (35, y + 10), (self.info_canvas.get_width() - 35, y + 10))
@@ -786,10 +837,10 @@ class Client:
                 str_p2 = "-"
             Label.render_text(score_canvas, str_p1,
                               ((score_canvas.get_width() + 5) // 4, self.score_y_offset + i * 25),
-                              self.assets.font24, self.attributes["__var_info_canvas_score_color"])
+                              self.assets.font24, self.attributes["__var_info_canvas_score_color"], bold=True)
             Label.render_text(score_canvas, str_p2,
                               ((3 * score_canvas.get_width() - 5) // 4, self.score_y_offset + i * 25),
-                              self.assets.font24, self.attributes["__var_info_canvas_score_color"])
+                              self.assets.font24, self.attributes["__var_info_canvas_score_color"], bold=True)
 
         self.info_canvas.blit(score_canvas, (self.info_canvas.get_width() // 2 - score_canvas.get_width() // 2, y + 18))
 
@@ -806,10 +857,10 @@ class Client:
         final_score = self.game.get_final_game_score()
         Label.render_text(self.info_canvas, str(final_score[self.__player % 2]),
                           ((self.info_canvas.get_width() + 70) // 4, 465),
-                          self.assets.font24, self.attributes["__var_info_canvas_final_score_color"])
+                          self.assets.font24, self.attributes["__var_info_canvas_final_score_color"], bold=True)
         Label.render_text(self.info_canvas, str(final_score[not self.__player % 2]),
                           ((3 * self.info_canvas.get_width() - 70) // 4, 465),
-                          self.assets.font24, self.attributes["__var_info_canvas_final_score_color"])
+                          self.assets.font24, self.attributes["__var_info_canvas_final_score_color"], bold=True)
 
     def render_game(self) -> None:
         self.canvas.blit(self.assets.table, (self.canvas.get_width() // 2 - self.assets.table.get_width() // 2,
@@ -843,14 +894,17 @@ class Client:
 
         if anim := self.animation_handler.get_animation("#MATCH_OVER_SCREEN_FALL"):
             self.match_over_menu_canvas.fill(self.attributes["__var_match_over_menu_color"])
+            self.match_over_menu_title.render()
+            self.menu_return_button.render()
+            self.menu_play_again_button.render()
             self.canvas.blit(self.match_over_menu_canvas,
                              (0, anim.get_current_data()))
 
     def render_calling_adut(self) -> None:
-        surf = pygame.Surface(self.display.get_size(), pygame.SRCALPHA)
+        surf = pygame.Surface(self.canvas.get_size(), pygame.SRCALPHA)
         surf.fill((0, 0, 0))
         surf.set_alpha(self.attributes["__render_calling_adut_bg_alpha"])
-        self.display.blit(surf, (0, 0))
+        self.canvas.blit(surf, (0, 0))
 
         for button in self.call_adut_buttons:
             button.render()
@@ -884,10 +938,10 @@ class Client:
             )
 
     def render_zvanja(self) -> None:
-        surf = pygame.Surface((self.display.get_width(), 140), pygame.SRCALPHA)
+        surf = pygame.Surface((self.canvas.get_width(), 140), pygame.SRCALPHA)
         surf.fill((0, 0, 0))
         surf.set_alpha(self.attributes["__render_zvanja_bg_alpha"])
-        self.display.blit(surf, (0, self.display.get_height() // 2 - surf.get_height() // 2 - 30))
+        self.canvas.blit(surf, (0, self.canvas.get_height() // 2 - surf.get_height() // 2 - 30))
 
         self.zvanja_label.render()
         self.ima_zvanja_button.render()
@@ -934,7 +988,14 @@ class Client:
         self.player_count_label.render()
 
     def render_match_over_menu(self) -> None:
-        pass  # TODO: now
+        # TODO: now
+
+        self.match_over_menu_title.render()
+
+        self.menu_return_button.render()
+        self.menu_play_again_button.render()
+
+        self.canvas.blit(self.match_over_menu_canvas, (0, 0))
 
     def render_players(self) -> None:
         for i in range(4):
@@ -1448,7 +1509,8 @@ class Client:
             self.game.get_nickname(belot_player),
             (self.canvas.get_width() // 2, self.canvas.get_height() // 2 + 20),
             self.assets.font24,
-            (200, 200, 200)
+            (200, 200, 200),
+            bold=True
         )
 
         surf.set_alpha(alpha)
@@ -1556,7 +1618,7 @@ class Client:
         value = duration / 2 - abs(current_time - duration / 2)
         alpha = max(min(255, int(value * 600)), 0)
 
-        Label.render_text(self.timed_actions_after_canvas, text, (x, y), font, color, alpha=alpha)
+        Label.render_text(self.timed_actions_after_canvas, text, (x, y), font, color, bold=True, alpha=alpha)
 
     def move_back_card(self, current_time: float, card: int, copy_card: Card) -> None:
         card_x, card_y = copy_card.get_pos()
@@ -1591,10 +1653,6 @@ class Client:
     @property
     def game(self) -> Any:
         return self.data["game"]
-
-    @property
-    def display(self) -> pygame.Surface:
-        return self.canvas
 
 
 if __name__ == "__main__":

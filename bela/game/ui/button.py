@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from typing import Callable
+from typing import Callable, Optional
 import pygame
 
 from bela.game.events.events import EventHandler
@@ -13,12 +13,12 @@ from bela.game.utils.colors import *
 class Button:
 
     def __init__(self, display, center, size, font, center_x: bool = True, center_y: bool = True, text: str = None,
-                 img: pygame.Surface = None, color: Color = Colors.dark_red,
+                 img: pygame.Surface = None, color: Optional[Color] = Colors.dark_red,
                  font_color: Color = Colors.black, bold: bool = False, text_orientation: str = "center",
-                 padding: int = 20) -> None:
+                 padding: Optional[int] = None, border_color: Color = None, border_radius: int = 0,
+                 border_width: int = 2) -> None:
         self.display = display
         self.x, self.y = center
-        self.w, self.h = size
         self.text = text
         self.font = font
         self.img = img
@@ -27,7 +27,23 @@ class Button:
         self.bold = bold
         self.text_orientation = text_orientation
         self.padding = padding
+        self.border_color = border_color
+        self.border_radius = border_radius
+        self.border_width = border_width
         self.assets = Assets()
+
+        self.label = Label(display, (self.x, self.y), size, font, text=text, font_color=font_color, bold=bold,
+                           text_orientation=text_orientation, padding=padding)
+
+        if isinstance(size, str):
+            if size == "fit":
+                self.w, self.h = self.label.get_size()
+        else:
+            self.w, self.h = size
+
+        if self.padding is not None:
+            self.w += max(self.padding - (self.w - self.label.get_size()[0]), 0)
+            self.h += max(self.padding - (self.h - self.label.get_size()[1]), 0)
 
         if not center_x:
             self.x += self.w // 2
@@ -38,8 +54,6 @@ class Button:
             self.img = pygame.transform.scale(img, size)
 
         self.rect = pygame.Rect(self.x - self.w // 2, self.y - self.h // 2, self.w, self.h)
-        self.label = Label(display, (self.x, self.y), size, font, text=text, font_color=font_color, bold=bold,
-                           text_orientation=text_orientation, padding=padding)
 
         self.on_hover_listener = None
         self.on_click_listener = None
@@ -56,8 +70,10 @@ class Button:
         self.is_hovering = False
         self.is_clicked = False
         self.is_held = False
+        self.was_held = False
 
         self.last_hovered = False
+        self.last_held = False
 
         self.disable_time = 0.1
         self.init = False
@@ -79,12 +95,14 @@ class Button:
         if time.time() - self.init_time <= self.disable_time:
             return
 
-        if self.last_hovered and not self.is_hovering:  # e.i. on_exit()
-            self.color = self.color.darker(50)
-        elif not self.last_hovered and self.is_hovering:  # e.i. on_enter()
-            self.color = self.color.brighter(50)
+        if self.color:
+            if self.last_hovered and not self.is_hovering:  # e.i. on_exit()
+                self.color = self.color.darker(50)
+            elif not self.last_hovered and self.is_hovering:  # e.i. on_enter()
+                self.color = self.color.brighter(50)
 
         self.last_hovered = self.is_hovering
+        self.last_held = self.is_held
 
         self.is_clicked = False
         self.is_hovering = False
@@ -93,7 +111,10 @@ class Button:
         pos = event_handler.get_pos()
 
         if self.rect.collidepoint(pos):
-            if event_handler.releases["left"]:
+            if event_handler.presses["left"]:
+                self.was_held = True
+
+            if event_handler.releases["left"] and self.was_held:
                 self.on_click(*pos)
                 self.is_clicked = True
                 if callable(self.on_click_listener):
@@ -117,6 +138,8 @@ class Button:
                     self.on_hover_listener(self.hover_class, *pos, self)
                 else:
                     self.on_hover_listener(self.hover_class, *pos)
+        else:
+            self.was_held = False
 
     def render(self) -> None:
         if self.img is None:
@@ -127,7 +150,12 @@ class Button:
         self.label.render()
 
     def render_non_image(self) -> None:
-        pygame.draw.rect(self.display, self.color.c, self.rect)
+        if self.color is None:
+            return
+        pygame.draw.rect(self.display, self.color.c, self.rect, width=0, border_radius=self.border_radius)
+        if self.border_color:
+            pygame.draw.rect(self.display, self.border_color.c, self.rect,
+                             width=self.border_width, border_radius=self.border_radius)
 
     def render_image(self) -> None:
         self.display.blit(self.img, (self.rect.x, self.rect.y))

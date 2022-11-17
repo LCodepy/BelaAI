@@ -9,6 +9,8 @@ import pygame
 from bela.game.main.bela import GameState, Hand, Card
 from bela.game.networking.commands import Commands
 from bela.game.ui.button import Button
+from bela.game.ui.container import Container
+from bela.game.ui.input_field import InputField
 from bela.game.utils.animations import AnimationHandler, AnimationFactory
 from bela.game.utils.assets import Assets
 from bela.game.utils.gamestates import ClientGameStates
@@ -30,18 +32,9 @@ class Client:
     def __init__(self):
 
         self.network = Network(buffer=4096)
-        self.network.connect()
-
-        self.network.update_connection()
-
-        self.__player = int(self.network.player_id)
-        self.__game_id = int(self.network.game_id)
-        self.__nickname = f"PLAYER {self.__player}"
-
-        self.network.send_only(self.__nickname)
 
         self.win = pygame.display.set_mode(config.WINDOW_SIZE, pygame.SRCALPHA)
-        pygame.display.set_caption(f"Bela - Client {self.__player} | Game {self.__game_id}")
+        pygame.display.set_caption(f"Bela")
 
         self.canvas = pygame.Surface(config.CANVAS_SIZE, pygame.SRCALPHA)
         self.info_canvas = pygame.Surface(config.INFO_CANVAS_SIZE, pygame.SRCALPHA)
@@ -69,9 +62,10 @@ class Client:
 
         self.data: dict[str, Any] = {"game": None}
 
-        self.game_state: ClientGameStates = ClientGameStates.UNDEFINED
+        self.__player = 0
+        self.__client_id = 0
 
-        self.label_dots = 0
+        self.game_state: ClientGameStates = ClientGameStates.MAIN_MENU
 
         self.background_color = (0, 0, 20)
 
@@ -113,8 +107,6 @@ class Client:
         self.ended_game = False
         self.end_game = False
         self.end_match = False
-        self.started_new_game = True
-        self.set_game_ended = False
 
         self.score_y_offset = 15
 
@@ -158,11 +150,17 @@ class Client:
         # Event functions
 
         def on_play_btn_click(cls, x, y):
-            cls.data = cls.network.send(Commands.READY_UP)
-            cls.timer_handler.add_timer("dots1", self.attributes["__var_waiting_dots_timer"], update_label_text1, cls)
+            cls.connect()
 
         def on_options_btn_click(cls, x, y):
             pass
+
+        def on_create_new_game_btn_click(cls, x, y):
+            cls.animation_handler.add_animation(
+                AnimationFactory.create_sliding_screen_animation(800, 130, "up", vel=40),
+                id_="#CREATE_NEW_GAME"
+            )
+            cls.update_lobby_new_game_container()
 
         def on_sort_cards_btn_click(cls, x, y):
             cls.data = cls.network.send(Commands.SORT_CARDS)
@@ -170,16 +168,6 @@ class Client:
                 cls.calculate_card_positions(cls.game.get_netalon(cls.get_player()))
             else:
                 cls.calculate_card_positions(cls.get_cards().sve)
-
-        def update_label_text1(cls):
-            if cls.game.get_current_game_state() == GameState.IGRA:
-                return
-            cls.label_dots += 1
-            if cls.label_dots > self.attributes["__var_waiting_dots_count_max"]:
-                cls.label_dots = 1
-            cls.waiting_lobby_label.set_text("Pričekajte" + "." * cls.label_dots)
-            cls.timer_handler.add_timer_during_exec("dots2", self.attributes["__var_waiting_dots_timer"],
-                                                    update_label_text1, cls)
 
         def on_adut_btn_click(cls, x, y, btn):
             if cls.game.get_current_game_state() == GameState.ZVANJE_ADUTA:
@@ -209,6 +197,12 @@ class Client:
                 cls.zvanja_dalje = True
             cls.recheck_zvanja()
 
+        def on_menu_return_btn_click(cls, x, y):
+            pass
+
+        def on_play_again_btn_click(cls, x, y):
+            pass
+
         # Timers
 
         self.timer_handler = TimerHandler()
@@ -227,8 +221,8 @@ class Client:
 
         self.play_btn = Button(
             self.canvas,
-            (0, 530),
-            (650, 70),
+            (20, 530),
+            (400, 70),
             self.assets.font32,
             center_x=False,
             text="IGRAJ",
@@ -236,13 +230,13 @@ class Client:
             font_color=Colors.white,
             bold=True,
             text_orientation="left",
-            padding=40
+            padding=10
         ).set_on_click_listener(on_play_btn_click, self)
 
         self.options_btn = Button(
             self.canvas,
-            (-100, 450),
-            (650, 70),
+            (20, 450),
+            (400, 70),
             self.assets.font32,
             center_x=False,
             text="OPCIJE",
@@ -250,27 +244,51 @@ class Client:
             font_color=Colors.white,
             bold=True,
             text_orientation="left",
-            padding=140
+            padding=10
         ).set_on_click_listener(on_options_btn_click, self)
 
-        self.waiting_lobby_label = Label(
+        self.create_new_game_button = Button(
             self.canvas,
-            (self.canvas.get_width() // 2, self.canvas.get_height() // 2),
-            (400, 200),
-            pygame.font.SysFont("consolas", self.attributes["__var_waiting_label_font_size"]),
-            text="Pričekajte",
+            (self.canvas.get_width() // 2, 550),
+            (400, 35),
+            self.assets.font24,
+            text="NOVA IGRA",
+            color=Color(180, 150, 0),
             font_color=Colors.white,
             bold=True,
+            border_radius=10
+        ).set_on_click_listener(on_create_new_game_btn_click, self)
+
+        self.nickname_input_field = InputField(
+            self.canvas,
+            (self.canvas.get_width() // 2, 40),
+            (250, 40),
+            self.assets.font24,
+            hint="Player",
+            color=Color(100, 100, 100, 30),
+            font_color=Colors.white,
+            bold=True,
+            padding=10,
+            border_color=Color(200, 200, 200),
+            border_radius=10,
+            border_width=1,
+            max_length=8,
+            text_underline=True
         )
 
-        self.player_count_label = Label(
+        self.lobby_game_containers = [
+            Container(
+                self.canvas, ((self.canvas.get_width() - 4 * 180 + 30) // 2 + 75 + j * 180, 170 + i * 190), (150, 170),
+                Color(0, 0, 20), border_color=Color(40, 40, 60), border_radius=8, border_width=1, active=False
+            ) for j in range(4) for i in range(2)
+        ]
+
+        self.lobby_new_game_container = Container(
             self.canvas,
-            (self.canvas.get_width() // 2, self.canvas.get_height() // 2 + 80),
-            (700, 200),
-            self.assets.font48,
-            text="Spremni igrači: 0/4",
-            font_color=Colors.light_grey,
-            bold=True,
+            (self.canvas.get_width() // 2, self.canvas.get_height() + 250),
+            (400, 500),
+            Color(160, 130, 0),
+            border_radius=30
         )
 
         self.sort_cards_button = Button(
@@ -287,7 +305,7 @@ class Client:
         self.call_adut_buttons = [
             Button(
                 self.canvas,
-                (self.canvas.get_width() // 2 + 100 * (0.5 - i), self.canvas.get_height() // 2),
+                (self.canvas.get_width() // 2 + int(100 * (0.5 - i)), self.canvas.get_height() // 2),
                 (50, 50),
                 self.assets.font18,
                 text=types[i + 1],
@@ -396,7 +414,7 @@ class Client:
             color=Color(150, 150, 150, 60),
             border_radius=10,
             border_color=Color(150, 150, 150)
-        )
+        ).set_on_click_listener(on_menu_return_btn_click, self)
 
         self.menu_play_again_button = Button(
             self.match_over_menu_canvas,
@@ -409,7 +427,7 @@ class Client:
             color=Color(150, 150, 150, 60),
             border_radius=10,
             border_color=Color(150, 150, 150)
-        )
+        ).set_on_click_listener(on_play_again_btn_click, self)
 
         """-----------------------------------MAIN LOOP---------------------------------"""
         while True:
@@ -422,11 +440,14 @@ class Client:
 
         pygame.quit()
 
-    def on_turn(self):
-        return self.__player == self.game.player_turn
+    def connect(self) -> None:
+        self.network.connect()
+        self.network.update_connection()
+        self.__client_id = self.network.client_id
 
     def update(self):
-        self.data = self.network.send(Commands.GET)
+        if self.game_state not in (ClientGameStates.MAIN_MENU, ClientGameStates.UNDEFINED):
+            self.data = self.network.send(Commands.GET)
 
         self.timer_handler.update()
 
@@ -448,20 +469,73 @@ class Client:
     def update_game_states(self) -> None:
         #self.game_state = ClientGameStates.MATCH_OVER_MENU
 
-        if self.game_state is not ClientGameStates.MATCH_OVER_MENU:
-            self.game_state = ClientGameStates.UNDEFINED
-
-            if self.game.is_ready():
-                self.game_state = ClientGameStates.GAME
-            elif self.game.is_player_ready(self.__player):
-                self.game_state = ClientGameStates.LOBBY
-            elif not self.game.is_player_ready(self.__player):
-                self.game_state = ClientGameStates.MAIN_MENU
-        if (anim := self.animation_handler.get_animation("#MATCH_OVER_SCREEN_FALL")) and anim.is_finished():
+        if self.play_btn.is_clicked:
+            self.game_state = ClientGameStates.LOBBY
+        if (
+            self.animation_handler.has("#MATCH_OVER_SCREEN_FALL") and
+            self.animation_handler.get_animation("#MATCH_OVER_SCREEN_FALL").is_finished()
+        ):
             self.animation_handler.remove_animation("#MATCH_OVER_SCREEN_FALL")
             if "MATCH_OVER" in self.timed_actions[1]:
                 self.timed_actions[1].pop("MATCH_OVER")
             self.game_state = ClientGameStates.MATCH_OVER_MENU
+
+    def update_menu(self) -> None:
+        self.play_btn.update(self.event_handler)
+        self.options_btn.update(self.event_handler)
+
+    def update_lobby(self) -> None:
+        if self.animation_handler.has("#CREATE_NEW_GAME"):
+            self.lobby_new_game_container.move(
+                y=self.animation_handler.get_animation("#CREATE_NEW_GAME").get_current_data()
+            )
+            self.lobby_new_game_container.update(self.event_handler)
+        else:
+            self.create_new_game_button.update(self.event_handler)
+            self.nickname_input_field.update(self.event_handler)
+
+            for container in self.lobby_game_containers:
+                if container.active:
+                    container.update(self.event_handler)
+
+    def update_lobby_new_game_container(self) -> None:
+        self.lobby_new_game_container.add_element(
+            Label(
+                self.canvas,
+                (0, 0),
+                (200, 50),
+                self.assets.font24,
+                text="NAPRAVI NOVU IGRU",
+                font_color=Colors.white,
+                bold=True
+            ),
+            id_="#TITLE",
+            pad_y=10
+        )
+        self.lobby_new_game_container.add_element(
+            InputField(
+                self.canvas,
+                (0, 0),
+                (200, 30),
+                self.assets.font24,
+                hint="Game 0",  # TODO: replace with the current game count
+                color=Color(100, 100, 100, 30),
+                font_color=Colors.white,
+                bold=True,
+                padding=10,
+                border_color=Color(200, 200, 200),
+                border_radius=10,
+                border_width=1,
+                max_length=8,
+                text_underline=True
+            ),
+            id_="GAME_NAME",
+            pad_y=30
+        )
+
+    def update_match_over_menu(self) -> None:
+        self.menu_return_button.update(self.event_handler)
+        self.menu_play_again_button.update(self.event_handler)
 
     def update_game(self) -> None:
         if self.game.current_game_over and not self.activated_game_over:
@@ -553,19 +627,6 @@ class Client:
 
     def update_game_zvanje(self) -> None:
         pass
-
-    def update_menu(self) -> None:
-        self.play_btn.update(self.event_handler)
-        self.options_btn.update(self.event_handler)
-
-    def update_lobby(self) -> None:
-        self.player_count_label.set_text("Spremni igrači: " + str(self.game.get_ready_player_count()) + "/4")
-
-    def update_match_over_menu(self) -> None:
-        # TODO: now
-
-        self.menu_return_button.update(self.event_handler)
-        self.menu_play_again_button.update(self.event_handler)
 
     def update_cards(self) -> None:
         self.update_cards_in_inventory()
@@ -767,12 +828,38 @@ class Client:
         pygame.display.update()
         self.clock.tick(self.__fps)
 
+    def render_menu(self) -> None:
+        self.title.render()
+        self.play_btn.render()
+        self.options_btn.render()
+
+    def render_lobby(self) -> None:
+        for container in self.lobby_game_containers:
+            container.render()
+
+        self.create_new_game_button.render()
+        self.nickname_input_field.render()
+
+        if self.animation_handler.has("#CREATE_NEW_GAME"):
+            self.lobby_new_game_container.render()
+
+    def render_match_over_menu(self) -> None:
+        # TODO: now
+
+        self.match_over_menu_title.render()
+
+        self.menu_return_button.render()
+        self.menu_play_again_button.render()
+
+        self.canvas.blit(self.match_over_menu_canvas, (0, 0))
+
     def render_info(self) -> None:
         pygame.draw.line(self.info_canvas, self.attributes["__var_info_canvas_line_color"],
                          (0, 0), (0, self.info_canvas.get_height()))  # (0, 9) (0, height - 8)
 
-        if not self.game.is_ready():
+        if self.game_state is not ClientGameStates.GAME:
             return
+
         Label.render_text(self.info_canvas, "INFO", (10, 10), self.assets.font24,
                           self.attributes["__var_info_canvas_text_color"], bold=True, centered=False)
         pygame.draw.line(self.info_canvas, self.attributes["__var_info_canvas_line_color"],
@@ -892,13 +979,12 @@ class Client:
                     self.render_zvanja_points()
                 self.render_game_zvanje()
 
-        if anim := self.animation_handler.get_animation("#MATCH_OVER_SCREEN_FALL"):
-            self.match_over_menu_canvas.fill(self.attributes["__var_match_over_menu_color"])
+        if self.animation_handler.has("#MATCH_OVER_SCREEN_FALL"):
             self.match_over_menu_title.render()
             self.menu_return_button.render()
             self.menu_play_again_button.render()
             self.canvas.blit(self.match_over_menu_canvas,
-                             (0, anim.get_current_data()))
+                             (0, self.animation_handler.get_animation("#MATCH_OVER_SCREEN_FALL").get_current_data()))
 
     def render_calling_adut(self) -> None:
         surf = pygame.Surface(self.canvas.get_size(), pygame.SRCALPHA)
@@ -975,27 +1061,6 @@ class Client:
                     )
                     x += card_width
                 x += zvanja_gap
-
-    def render_menu(self) -> None:
-        self.title.render()
-        self.play_btn.render()
-        self.options_btn.render()
-
-    def render_lobby(self) -> None:
-        self.canvas.fill(Color(9, 21, 49).c)
-
-        self.waiting_lobby_label.render()
-        self.player_count_label.render()
-
-    def render_match_over_menu(self) -> None:
-        # TODO: now
-
-        self.match_over_menu_title.render()
-
-        self.menu_return_button.render()
-        self.menu_play_again_button.render()
-
-        self.canvas.blit(self.match_over_menu_canvas, (0, 0))
 
     def render_players(self) -> None:
         for i in range(4):
@@ -1649,6 +1714,9 @@ class Client:
 
     def get_player(self) -> int:
         return self.__player
+
+    def on_turn(self):
+        return self.__player == self.game.player_turn
 
     @property
     def game(self) -> Any:

@@ -2,18 +2,23 @@ from typing import Tuple, Union
 
 import pygame
 
+from bela.game.events.events import EventHandler
+from bela.game.ui.ui_object import UIObject
 from bela.game.utils.colors import *
 
 pygame.font.init()
 
 
-class Label:
+class Label(UIObject):
 
-    def __init__(self, display: pygame.Surface, position: Tuple[int, int], size: Union[Tuple[int, int], str], font, text: str = "",
-                 font_color: Color = Colors.black, bold: bool = False, text_orientation: str = "center",
-                 padding: int = 10):
+    def __init__(self, display: pygame.Surface, position: Tuple[int, int], size: Union[Tuple[int, int], str], font,
+                 text: str = "", font_color: Color = Colors.black, bold: bool = False,
+                 text_orientation: str = "center", padding: int = 10):
+
+        super().__init__(display, position, size, padding)
+
         self.display = display
-        self.position = position
+        self.x, y = position
         self.size = size
         self.text = text
         self.font_color = font_color
@@ -22,11 +27,28 @@ class Label:
         self.text_orientation = text_orientation
         self.padding = padding
 
+        self.is_hovering = False
+
         if self.size == "fit":
             self.size = (float("inf"), float("inf"))
 
         self.lines = [""]
         self.update_text()
+
+    def update_vars(self) -> None:
+        if self.size == "fit":
+            self.size = (float("inf"), float("inf"))
+
+        self.lines = [""]
+        self.update_text()
+
+    def update(self, event_handler: EventHandler) -> None:
+        self.is_hovering = False
+
+        w, h = self.size
+        rect = pygame.Rect(self.x - w // 2, self.y - h // 2, w, h)
+        if rect.collidepoint(event_handler.get_pos()):
+            self.is_hovering = True
 
     def update_text(self):
         words = self.text.split(" ")
@@ -75,23 +97,28 @@ class Label:
         return x_size, y_size
 
     def get_pos(self) -> Tuple[int, int]:
-        return self.position
+        return self.x, self.y
 
-    def move(self, x: int = None, y: int = None) -> None:
-        self.position = (x or self.position[0], y or self.position[1])
+    def move(self, x: int = None, y: int = None, cx: bool = True, cy: bool = True) -> None:
+        self.x = x or self.x
+        self.y = y or self.y
+        if x and not cx:
+            self.x += self.w // 2
+        if y and not cy:
+            self.y += self.h // 2
 
     def render(self):
         for i, text in enumerate(self.lines):
             t = self.get_text(text=text)
 
             if self.text_orientation == "left":
-                x = self.position[0] + self.padding - self.size[0] // 2
+                x = self.x + self.padding - self.size[0] // 2
             elif self.text_orientation == "center":
-                x = self.position[0] - t.get_rect().w // 2
+                x = self.x - t.get_rect().w // 2
             else:
-                x = self.position[0] + self.size[0] // 2 - t.get_rect().w - self.padding
+                x = self.x + self.size[0] // 2 - t.get_rect().w - self.padding
 
-            self.display.blit(t, (x, self.position[1] - (len(self.lines) * (t.get_rect().h + 2) - 2) // 2
+            self.display.blit(t, (x, self.y - (len(self.lines) * (t.get_rect().h + 2) - 2) // 2
                                   + (t.get_rect().h + 2) * i))
 
     @staticmethod

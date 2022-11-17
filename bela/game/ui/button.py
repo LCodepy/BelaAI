@@ -6,19 +6,24 @@ import pygame
 
 from bela.game.events.events import EventHandler
 from bela.game.ui.label import Label
+from bela.game.ui.ui_object import UIObject
 from bela.game.utils.assets import Assets
 from bela.game.utils.colors import *
 
 
-class Button:
+class Button(UIObject):
 
-    def __init__(self, display, center, size, font, center_x: bool = True, center_y: bool = True, text: str = None,
-                 img: pygame.Surface = None, color: Optional[Color] = Colors.dark_red,
-                 font_color: Color = Colors.black, bold: bool = False, text_orientation: str = "center",
-                 padding: Optional[int] = None, border_color: Color = None, border_radius: int = 0,
+    def __init__(self, display: pygame.Surface, position: Tuple[int, int], size: Tuple[int, int], font,
+                 center_x: bool = True, center_y: bool = True, text: str = None, img: pygame.Surface = None,
+                 color: Optional[Color] = Colors.dark_red, font_color: Color = Colors.black, bold: bool = False,
+                 text_orientation: str = "center", padding: int = 0, border_color: Color = None, border_radius: int = 0,
                  border_width: int = 2) -> None:
+
+        super().__init__(display, position, size, padding, border_color, border_radius, border_width)
+
         self.display = display
-        self.x, self.y = center
+        self.x, self.y = position
+        self.size = size
         self.text = text
         self.font = font
         self.img = img
@@ -30,10 +35,11 @@ class Button:
         self.border_color = border_color
         self.border_radius = border_radius
         self.border_width = border_width
-        self.assets = Assets()
+        self.center_x = center_x
+        self.center_y = center_y
 
-        self.label = Label(display, (self.x, self.y), size, font, text=text, font_color=font_color, bold=bold,
-                           text_orientation=text_orientation, padding=padding)
+        self.label = Label(self.display, (self.x if center_x else self.x + size[0] // 2, self.y), size, font, text=text,
+                           font_color=font_color, bold=bold, text_orientation=text_orientation, padding=padding)
 
         if isinstance(size, str):
             if size == "fit":
@@ -78,6 +84,31 @@ class Button:
         self.disable_time = 0.1
         self.init = False
         self.init_time = 0
+
+    def update_vars(self) -> None:
+        self.label = Label(self.display, (self.x if self.center_x else self.x + self.size[0] // 2, self.y), self.size,
+                           self.font, text=self.text, font_color=self.font_color, bold=self.bold,
+                           text_orientation=self.text_orientation, padding=self.padding)
+
+        if isinstance(self.size, str):
+            if self.size == "fit":
+                self.w, self.h = self.label.get_size()
+        else:
+            self.w, self.h = self.size
+
+        if self.padding is not None:
+            self.w += max(self.padding - (self.w - self.label.get_size()[0]), 0)
+            self.h += max(self.padding - (self.h - self.label.get_size()[1]), 0)
+
+        if not self.center_x:
+            self.x += self.w // 2
+        if not self.center_y:
+            self.y += self.h // 2
+
+        if self.img is not None:
+            self.img = pygame.transform.scale(self.img, self.size)
+
+        self.rect = pygame.Rect(self.x - self.w // 2, self.y - self.h // 2, self.w, self.h)
 
     def reinit(self) -> None:
         self.disable_time = 0.1
@@ -152,10 +183,15 @@ class Button:
     def render_non_image(self) -> None:
         if self.color is None:
             return
-        pygame.draw.rect(self.display, self.color.c, self.rect, width=0, border_radius=self.border_radius)
+
+        surf = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+
+        pygame.draw.rect(surf, self.color.c, [0, 0, self.rect.w, self.rect.h], width=0,
+                         border_radius=self.border_radius)
         if self.border_color:
-            pygame.draw.rect(self.display, self.border_color.c, self.rect,
+            pygame.draw.rect(surf, self.border_color.c, [0, 0, self.rect.w, self.rect.h],
                              width=self.border_width, border_radius=self.border_radius)
+        self.display.blit(surf, (self.rect.x, self.rect.y))
 
     def render_image(self) -> None:
         self.display.blit(self.img, (self.rect.x, self.rect.y))
@@ -189,6 +225,19 @@ class Button:
         self.hold_pass_self = pass_self
         return self
 
+    def move(self, x: int = None, y: int = None, cx: bool = True, cy: bool = True) -> None:
+        self.x = x or self.rect.x
+        self.y = y or self.rect.y
+        if x and not cx:
+            self.x += self.w // 2
+        if y and not cy:
+            self.y += self.h // 2
+        self.rect.x = self.x
+        self.rect.y = self.y
+
     def get_text(self) -> str:
         return self.label.text
+
+    def get_size(self) -> Tuple[int, int]:
+        return self.rect.size
 

@@ -100,7 +100,7 @@ class FallingScreenAnimation(Animation):
         self.stop_y = stop_y
         self.vel = velocity
 
-        self.g = 9.8 * 10**-1
+        self.g = 0.98
         self.acc = self.g
 
     def update(self) -> None:
@@ -126,6 +126,54 @@ class FallingScreenAnimation(Animation):
         return self.y
 
 
+class SlidingScreenAnimation(Animation):
+
+    def __init__(self, start: int, stop: int, direction: str, vel: float) -> None:
+        super().__init__()
+        self.start = start
+        self.stop = stop
+        self.direction = direction
+        self.vel = []
+
+        self.x = start
+        self.y = start
+
+        if self.direction == "up":
+            self.vel = [0, -vel]
+        elif self.direction == "down":
+            self.vel = [0, vel]
+        elif self.direction == "right":
+            self.vel = [vel, 0]
+        elif self.direction == "left":
+            self.vel = [-vel, 0]
+        else:
+            raise ValueError(f"{self.direction} is an invalid direction.")
+
+    def update(self) -> None:
+        self.just_finished = False
+
+        if self.finished:
+            return
+
+        self.x += self.vel[0]
+        self.y += self.vel[1]
+
+        if (
+            self.x >= self.stop and self.direction == "right" or
+            self.x <= self.stop and self.direction == "left" or
+            self.y >= self.stop and self.direction == "down" or
+            self.y <= self.stop and self.direction == "up"
+        ):
+            self.x = self.stop
+            self.y = self.stop
+
+            self.finished = True
+            self.just_finished = True
+
+    def get_current_data(self) -> Any:
+        return int(self.x) if self.vel[0] else int(self.y)
+
+
 class AnimationFactory:
 
     @staticmethod
@@ -137,6 +185,10 @@ class AnimationFactory:
     def create_falling_screen_animation(size: Tuple[int, int], start_y: float = None, stop_y: float = 0,
                                         velocity: float = 10.0) -> Animation:
         return FallingScreenAnimation(size, start_y if start_y is not None else -size[1], stop_y, velocity)
+
+    @staticmethod
+    def create_sliding_screen_animation(start: int, stop: int, direction: str, vel: float = 20) -> Animation:
+        return SlidingScreenAnimation(start, stop, direction, vel)
 
 
 

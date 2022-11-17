@@ -29,6 +29,9 @@ class Color:
             return Color(color[0], color[1], color[2])
         return Color(color[0], color[1], color[2], color[3])
 
+    def __repr__(self) -> str:
+        return f"Color({self.r}, {self.g}, {self.b}, {self.alpha})"
+
 
 class Colors:
 

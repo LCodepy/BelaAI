@@ -1,3 +1,4 @@
+from __future__ import annotations
 from collections import defaultdict
 from typing import Union
 
@@ -6,7 +7,10 @@ import pygame
 
 class EventHandler:
 
-    def __init__(self):
+    def __init__(self, filter_mouse_x: int = 0, filter_mouse_y: int = 0):
+        self.filter_mouse_x = filter_mouse_x
+        self.filter_mouse_y = filter_mouse_y
+
         self.keys = defaultdict(lambda: False)
         self.unicode_keys = defaultdict(lambda: False)
 
@@ -31,7 +35,7 @@ class EventHandler:
 
             elif event.type == pygame.KEYDOWN:
                 self.keys[event.key] = True
-                self.unicode_keys[event.unicode] = False
+                self.unicode_keys[event.unicode] = True
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button < 4:
@@ -67,4 +71,16 @@ class EventHandler:
         return self.keys[key]
 
     def get_pos(self):
-        return pygame.mouse.get_pos()
+        x, y = pygame.mouse.get_pos()
+        return x - self.filter_mouse_x, y - self.filter_mouse_y
+
+    def filtered(self, x: int, y: int) -> EventHandler:
+        ev = EventHandler(x, y)
+        ev.keys = self.keys
+        ev.unicode_keys = self.unicode_keys
+        ev.presses = self.presses
+        ev.releases = self.releases
+        ev.held = self.held
+        ev.scrolls = self.scrolls
+        return ev
+

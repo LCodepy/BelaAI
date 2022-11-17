@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-from bela.game.main.bela import Card
+from bela.game.main.bela import Card, GameData
 
 
 @dataclass
@@ -14,6 +14,9 @@ class Command:
 class Commands:
 
     GET = Command("GET", None)
+    CREATE_GAME = Command("CREATE_GAME", (GameData, ))
+    ENTER_GAME = Command("ENTER_GAME", (int, ))
+    CHANGE_NICKNAME = Command("CHANGE_NICKNAME", (str, ))
     READY_UP = Command("READY_UP", None)
     SORT_CARDS = Command("SORT_CARDS", None)
     PLAY_CARD = Command("PLAY_CARD", (Card, ))

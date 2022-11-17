@@ -21,8 +21,7 @@ class Server:
         self.buffer = 4096
 
         self.games = {}
-        self.client_id = 0
-        self.current_game_id = 0
+        self.clients = []
 
         Log.i("SERVER", f"Started on port {22222}")
 
@@ -42,23 +41,37 @@ class Server:
             connection, address = self.socket.accept()
             Log.i("SERVER", "Client connected from " + str(address))
 
-            player_id = 0
+            self.clients.append(address)
 
-            self.current_game_id = self.client_id // 4
-            self.client_id += 1
+            start_new_thread(self.client, (connection, address))
 
-            if self.client_id % 4 == 1:
-                self.games[self.current_game_id] = Bela(self.current_game_id)
-                Log.i("SERVER", "Starting new game | id:" + str(self.current_game_id))
-            else:
-                player_id = (self.client_id - 1) % 4
+    def client(self, connection, address):
+        connection.send(pickle.dumps(address))
 
-            Log.i("SERVER", "New player joined | id:" + str(player_id) + "  | address:" + str(address))
-            start_new_thread(self.client, (connection, player_id, self.current_game_id))
+        while True:
+            try:
+                data = pickle.loads(connection.recv(self.buffer))
 
-    def client(self, connection, player_id, game_id):
-        connection.send(pickle.dumps([player_id, game_id]))
-        nickname = pickle.loads(connection.recv(self.buffer))
+                response = {"games": self.games}
+
+                if Commands.equals(data, Commands.CREATE_GAME):
+                    pass
+
+                elif Commands.equals(data, Commands.ENTER_GAME):
+                    pass
+
+                elif Commands.equals(data, Commands.CHANGE_NICKNAME):
+                    pass
+
+                connection.sendall(pickle.dumps(response))
+
+            except (socket.error, EOFError, ):
+                Log.i("SERVER", f"Client {address} disconnected...")
+                connection.close()
+                self.clients.pop(self.clients.index(address))
+                break
+
+        return  # TODO: remove
 
         while True:
 

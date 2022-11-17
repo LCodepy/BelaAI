@@ -9,20 +9,15 @@ class Network:
         self.__server = socket.gethostname()
         self.__port = port or 22222
         self.__address = (self.__server, self.__port)
-        self.__player_id = None
-        self.__game_id = None
+        self.__client_id = None
         self.__buffer = buffer
 
     @property
-    def player_id(self):
-        return self.__player_id
-
-    @property
-    def game_id(self):
-        return self.__game_id
+    def client_id(self):
+        return self.__client_id
 
     def update_connection(self):
-        self.__player_id, self.__game_id = pickle.loads(self.__client.recv(self.__buffer))
+        self.__client_id = pickle.loads(self.__client.recv(self.__buffer))
 
     def connect(self):
         self.__client.connect(self.__address)

@@ -16,6 +16,14 @@ class GameState(Enum):
 
 
 @dataclass
+class GameData:
+
+    id_: str
+    name: str
+    max_points: int
+
+
+@dataclass
 class Hand:
 
     netalon: list = field(default_factory=list)

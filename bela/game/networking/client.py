@@ -10,6 +10,7 @@ from bela.game.main.bela import GameState, Hand, Card
 from bela.game.networking.commands import Commands
 from bela.game.ui.button import Button
 from bela.game.ui.container import Container
+from bela.game.ui.grid import Grid
 from bela.game.ui.input_field import InputField
 from bela.game.utils.animations import AnimationHandler, AnimationFactory
 from bela.game.utils.assets import Assets
@@ -510,16 +511,15 @@ class Client:
                 bold=True
             ),
             id_="#TITLE",
-            pad_y=10
-        )
-        self.lobby_new_game_container.add_element(
+            pad_y=30
+        ).add_element(
             InputField(
                 self.canvas,
                 (0, 0),
                 (200, 30),
                 self.assets.font24,
-                hint="Game 0",  # TODO: replace with the current game count
-                color=Color(100, 100, 100, 30),
+                hint="Game_0",  # TODO: replace with the current game count
+                color=Color(100, 100, 100, 100),
                 font_color=Colors.white,
                 bold=True,
                 padding=10,
@@ -530,7 +530,80 @@ class Client:
                 text_underline=True
             ),
             id_="GAME_NAME",
-            pad_y=30
+            pad_y=10
+        ).add_element(
+            InputField(
+                self.canvas,
+                (0, 0),
+                (200, 30),
+                self.assets.font24,
+                hint="1001",
+                color=Color(100, 100, 100, 100),
+                font_color=Colors.white,
+                bold=True,
+                padding=10,
+                border_color=Color(200, 200, 200),
+                border_radius=10,
+                border_width=1,
+                max_length=8,
+                text_underline=True,
+                char_set="0123456789"
+            ),
+            id_="GAME_NAME",
+            pad_y=10
+        ).add_element(
+            Grid(
+                self.canvas,
+                (0, 0),
+                ("fit", "fit"),
+                (2, 2),
+                render_col_splitter=True,
+            ).add_element(
+                Label(
+                    self.canvas,
+                    (0, 0),
+                    (200, 50),
+                    self.assets.font24,
+                    text="IGRAČ 1",
+                    font_color=Colors.white,
+                    bold=True
+                ), 0, 0
+            ).add_element(
+                Label(
+                    self.canvas,
+                    (0, 0),
+                    (200, 50),
+                    self.assets.font24,
+                    text="IGRAČ 2",
+                    font_color=Colors.white,
+                    bold=True
+                ), 0, 1
+            ).add_element(
+                Label(
+                    self.canvas,
+                    (0, 0),
+                    (200, 50),
+                    self.assets.font24,
+                    text="IGRAČ 3",
+                    font_color=Colors.white,
+                    bold=True
+                ), 1, 0
+            ).add_element(
+                Label(
+                    self.canvas,
+                    (0, 0),
+                    (200, 50),
+                    self.assets.font24,
+                    text="IGRAČ 4",
+                    font_color=Colors.white,
+                    bold=True
+                ), 1, 1
+            ),
+            id_="GRID1",
+            pad_y=20,
+            pad_x=10,
+            fit_x=True,
+            fit_y=True
         )
 
     def update_match_over_menu(self) -> None:

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from typing import Tuple, Optional
 
@@ -63,35 +64,39 @@ class Container(UIObject):
         self.current_y = 0
 
     def update(self, event_handler: EventHandler) -> None:
-        for element in self.elements:  # TODO: event handler filtered ne radi jer pre spor
+        for element in self.elements:
             element.object.update(event_handler.filtered(self.rect.x, self.rect.y))
 
     def render(self) -> None:
-        surf = pygame.Surface(self.rect.size, pygame.SRCALPHA)
-
-        pygame.draw.rect(surf, self.color.c, [0, 0, self.rect.w, self.rect.h], width=0,
+        pygame.draw.rect(self.surface, self.color.c, [0, 0, self.rect.w, self.rect.h], width=0,
                          border_radius=self.border_radius)
         if self.border_color:
-            pygame.draw.rect(surf, self.border_color.c, [0, 0, self.rect.w, self.rect.h],
+            pygame.draw.rect(self.surface, self.border_color.c, [0, 0, self.rect.w, self.rect.h],
                              width=self.border_width, border_radius=self.border_radius)
 
         self.render_elements()
 
-        surf.blit(self.surface, (0, 0))
-
-        self.display.blit(surf, (self.rect.x, self.rect.y))
+        self.display.blit(self.surface, (self.rect.x, self.rect.y))
 
     def render_elements(self) -> None:
         for element in self.elements:
             element.object.render()
 
-    def add_element(self, element: UIObject, id_: str = None, pad_x: int = 0, pad_y: int = 0) -> None:
+    def add_element(self, element: UIObject, id_: str = None, pad_x: int = 0, pad_y: int = 0,
+                    fit_x: bool = False, fit_y: bool = False) -> Container:
         if id_ is None:
             id_ = str(id(element))
 
         element.display = self.surface
 
         self.current_y += pad_y
+
+        if fit_x:
+            element.set_size((self.rect.w - pad_x * 2, element.get_size()[1]))
+            element.update_vars()
+        if fit_y:
+            element.set_size((element.get_size()[0], (self.rect.h - self.current_y) - pad_y * 2))
+            element.update_vars()
 
         element.move(self.w // 2, self.current_y, cy=False)
         element.update_vars()
@@ -103,8 +108,7 @@ class Container(UIObject):
         self.current_y += element.get_size()[1]
         self.current_y += pad_y
 
-    def add_grid(self) -> None:
-        pass
+        return self
 
     def get_element(self, id_: str) -> Optional[UIObject]:
         for element in self.elements:
@@ -123,4 +127,10 @@ class Container(UIObject):
 
     def get_size(self) -> Tuple[int, int]:
         return self.rect.size
+
+    def get_center(self) -> Tuple[int, int]:
+        return self.rect.center
+
+    def set_size(self, size: Tuple[int, int]) -> None:
+        self.w, self.h = size
 

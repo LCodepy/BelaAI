@@ -38,3 +38,11 @@ class UIObject(ABC):
     @abstractmethod
     def get_size(self) -> Tuple[int, int]:
         """Returns the size of the UI object."""
+
+    @abstractmethod
+    def get_center(self) -> Tuple[int, int]:
+        """Returns the center of the UI object."""
+
+    @abstractmethod
+    def set_size(self, size: Tuple[int, int]) -> None:
+        """Sets the new size fot the UI object."""

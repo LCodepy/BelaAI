@@ -16,7 +16,8 @@ class InputField(UIObject):
                  center_x: bool = True, center_y: bool = True, hint: str = None,
                  color: Optional[Color] = Colors.dark_red, font_color: Color = Colors.black, bold: bool = False,
                  padding: int = 0, border_color: Color = None, border_radius: int = 0, border_width: int = 2,
-                 text_underline: bool = True, max_length: int = None, text_orientation: str = "left") -> None:
+                 text_underline: bool = True, max_length: int = None, text_orientation: str = "left",
+                 char_set: str = None) -> None:
 
         super().__init__(display, position, size, padding, border_color, border_radius, border_width)
 
@@ -37,8 +38,7 @@ class InputField(UIObject):
         self.center_x = center_x
         self.center_y = center_y
         self.text_orientation = text_orientation
-
-        self.special_chars = "_.@čćđšžČĆĐŠŽ"
+        self.char_set = char_set or string.ascii_uppercase + string.ascii_lowercase + string.digits + "_.@čćđšžČĆĐŠŽ"
 
         self.hint_font_color = self.font_color.darker(100)
         self.text = ""
@@ -93,7 +93,7 @@ class InputField(UIObject):
 
         if self.focused:
             for char in event_handler.unicode_keys.keys():
-                if char not in string.ascii_uppercase + string.ascii_lowercase + string.digits + self.special_chars:
+                if char not in self.char_set:
                     continue
                 if self.max_length and len(self.text) + 1 <= self.max_length:
                     self.text += char
@@ -155,3 +155,9 @@ class InputField(UIObject):
 
     def get_size(self) -> Tuple[int, int]:
         return self.rect.size
+
+    def get_center(self) -> Tuple[int, int]:
+        return self.rect.center
+
+    def set_size(self, size: Tuple[int, int]) -> None:
+        self.w, self.h = size

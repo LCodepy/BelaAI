@@ -241,3 +241,9 @@ class Button(UIObject):
     def get_size(self) -> Tuple[int, int]:
         return self.rect.size
 
+    def get_center(self) -> Tuple[int, int]:
+        return self.rect.center
+
+    def set_size(self, size: Tuple[int, int]) -> None:
+        self.size = size
+

@@ -50,6 +50,20 @@ class Label(UIObject):
         if rect.collidepoint(event_handler.get_pos()):
             self.is_hovering = True
 
+    def render(self):
+        for i, text in enumerate(self.lines):
+            t = self.get_text(text=text)
+
+            if self.text_orientation == "left":
+                x = self.x + self.padding - self.size[0] // 2
+            elif self.text_orientation == "center":
+                x = self.x - t.get_rect().w // 2
+            else:
+                x = self.x + self.size[0] // 2 - t.get_rect().w - self.padding
+
+            self.display.blit(t, (x, self.y - (len(self.lines) * (t.get_rect().h + 2) - 2) // 2
+                                  + (t.get_rect().h + 2) * i))
+
     def update_text(self):
         words = self.text.split(" ")
         self.lines = [""]
@@ -99,6 +113,12 @@ class Label(UIObject):
     def get_pos(self) -> Tuple[int, int]:
         return self.x, self.y
 
+    def get_center(self) -> Tuple[int, int]:
+        return self.x, self.y
+
+    def set_size(self, size: Tuple[int, int]) -> None:
+        self.size = size
+
     def move(self, x: int = None, y: int = None, cx: bool = True, cy: bool = True) -> None:
         self.x = x or self.x
         self.y = y or self.y
@@ -106,20 +126,6 @@ class Label(UIObject):
             self.x += self.w // 2
         if y and not cy:
             self.y += self.h // 2
-
-    def render(self):
-        for i, text in enumerate(self.lines):
-            t = self.get_text(text=text)
-
-            if self.text_orientation == "left":
-                x = self.x + self.padding - self.size[0] // 2
-            elif self.text_orientation == "center":
-                x = self.x - t.get_rect().w // 2
-            else:
-                x = self.x + self.size[0] // 2 - t.get_rect().w - self.padding
-
-            self.display.blit(t, (x, self.y - (len(self.lines) * (t.get_rect().h + 2) - 2) // 2
-                                  + (t.get_rect().h + 2) * i))
 
     @staticmethod
     def render_text(surface, text, pos, font, color, bold: bool = False, centered: bool = True, alpha: int = -1):

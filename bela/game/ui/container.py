@@ -16,6 +16,8 @@ class UIObjectWrapper:
     object: UIObject
     pad_x: int
     pad_y: int
+    fit_x: bool
+    fit_y: bool
 
 
 class Container(UIObject):
@@ -47,7 +49,7 @@ class Container(UIObject):
 
         self.rect = pygame.Rect(self.x - self.w // 2, self.y - self.h // 2, self.w, self.h)
 
-        self.elements = []
+        self.elements: list[UIObjectWrapper] = []
         self.current_y = 0
 
     def update_vars(self) -> None:
@@ -60,8 +62,24 @@ class Container(UIObject):
 
         self.rect = pygame.Rect(self.x - self.w // 2, self.y - self.h // 2, self.w, self.h)
 
-        self.elements = []
         self.current_y = 0
+        for element in self.elements:
+            element.object.display = self.surface
+
+            self.current_y += element.pad_y
+
+            if element.fit_x:
+                element.object.set_size((self.rect.w - element.pad_x * 2, element.object.get_size()[1]))
+                element.object.update_vars()
+            if element.fit_y:
+                element.object.set_size((element.object.get_size()[0], (self.rect.h - self.current_y) - element.pad_y * 2))
+                element.object.update_vars()
+
+            element.object.move(self.w // 2, self.current_y, cy=False)
+            element.object.update_vars()
+
+            self.current_y += element.object.get_size()[1]
+            self.current_y += element.pad_y
 
     def update(self, event_handler: EventHandler) -> None:
         for element in self.elements:
@@ -102,7 +120,7 @@ class Container(UIObject):
         element.update_vars()
 
         self.elements.append(
-            UIObjectWrapper(id_, element, pad_x, pad_y)
+            UIObjectWrapper(id_, element, pad_x, pad_y, fit_x, fit_y)
         )
 
         self.current_y += element.get_size()[1]
@@ -116,14 +134,16 @@ class Container(UIObject):
                 return element.object
 
     def move(self, x: int = None, y: int = None, cx: bool = True, cy: bool = True) -> None:
-        self.x = x or self.rect.x
-        self.y = y or self.rect.y
-        if x and not cx:
-            self.x += self.w // 2
-        if y and not cy:
-            self.y += self.h // 2
-        self.rect.x = self.x
-        self.rect.y = self.y
+        if x is not None:
+            self.x = x
+            if not cx:
+                self.x += self.w // 2
+        if y is not None:
+            self.y = y
+            if not cy:
+                self.y += self.h // 2
+
+        self.rect = pygame.Rect(self.x - self.w // 2, self.y - self.h // 2, self.w, self.h)
 
     def get_size(self) -> Tuple[int, int]:
         return self.rect.size
@@ -133,4 +153,7 @@ class Container(UIObject):
 
     def set_size(self, size: Tuple[int, int]) -> None:
         self.w, self.h = size
+
+    def set_display(self, surface: pygame.Surface) -> None:
+        self.display = surface
 

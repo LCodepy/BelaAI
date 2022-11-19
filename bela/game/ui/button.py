@@ -38,16 +38,18 @@ class Button(UIObject):
         self.center_x = center_x
         self.center_y = center_y
 
-        self.label = Label(self.display, (self.x if center_x else self.x + size[0] // 2, self.y), size, font, text=text,
-                           font_color=font_color, bold=bold, text_orientation=text_orientation, padding=padding)
+        self.label = None
+        if self.text is not None:
+            self.label = Label(self.display, (self.x if center_x else self.x + size[0] // 2, self.y), size, font, text=text,
+                               font_color=font_color, bold=bold, text_orientation=text_orientation, padding=padding)
 
-        if isinstance(size, str):
+        if isinstance(size, str) and self.label:
             if size == "fit":
                 self.w, self.h = self.label.get_size()
         else:
             self.w, self.h = size
 
-        if self.padding is not None:
+        if self.padding is not None and self.label:
             self.w += max(self.padding - (self.w - self.label.get_size()[0]), 0)
             self.h += max(self.padding - (self.h - self.label.get_size()[1]), 0)
 
@@ -86,17 +88,19 @@ class Button(UIObject):
         self.init_time = 0
 
     def update_vars(self) -> None:
-        self.label = Label(self.display, (self.x if self.center_x else self.x + self.size[0] // 2, self.y), self.size,
-                           self.font, text=self.text, font_color=self.font_color, bold=self.bold,
-                           text_orientation=self.text_orientation, padding=self.padding)
+        self.label = None
+        if self.text is not None:
+            self.label = Label(self.display, (self.x if self.center_x else self.x + self.size[0] // 2, self.y), self.size,
+                               self.font, text=self.text, font_color=self.font_color, bold=self.bold,
+                               text_orientation=self.text_orientation, padding=self.padding)
 
-        if isinstance(self.size, str):
+        if isinstance(self.size, str) and self.label:
             if self.size == "fit":
                 self.w, self.h = self.label.get_size()
         else:
             self.w, self.h = self.size
 
-        if self.padding is not None:
+        if self.padding is not None and self.label:
             self.w += max(self.padding - (self.w - self.label.get_size()[0]), 0)
             self.h += max(self.padding - (self.h - self.label.get_size()[1]), 0)
 
@@ -117,6 +121,7 @@ class Button(UIObject):
 
     def set_text(self, text: str) -> None:
         self.text = text
+        self.update_vars()
         self.label.set_text(text)
 
     def update(self, event_handler: EventHandler) -> None:
@@ -178,7 +183,8 @@ class Button(UIObject):
         else:
             self.render_image()
 
-        self.label.render()
+        if self.label:
+            self.label.render()
 
     def render_non_image(self) -> None:
         if self.color is None:
@@ -226,16 +232,23 @@ class Button(UIObject):
         return self
 
     def move(self, x: int = None, y: int = None, cx: bool = True, cy: bool = True) -> None:
-        self.x = x or self.rect.x
-        self.y = y or self.rect.y
-        if x and not cx:
-            self.x += self.w // 2
-        if y and not cy:
-            self.y += self.h // 2
+        if x is not None:
+            self.x = x
+            if not cx:
+                self.x += self.w // 2
+        if y is not None:
+            self.y = y
+            if not cy:
+                self.y += self.h // 2
+
         self.rect.x = self.x
         self.rect.y = self.y
 
+        self.update_vars()
+
     def get_text(self) -> str:
+        if self.label is None:
+            return ""
         return self.label.text
 
     def get_size(self) -> Tuple[int, int]:
@@ -246,4 +259,7 @@ class Button(UIObject):
 
     def set_size(self, size: Tuple[int, int]) -> None:
         self.size = size
+
+    def set_display(self, surface: pygame.Surface) -> None:
+        self.display = surface
 

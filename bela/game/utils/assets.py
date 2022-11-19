@@ -16,6 +16,7 @@ class Assets(metaclass=Singleton):
     PATH_IMAGES = "Assets/Images/"
 
     def __init__(self) -> None:
+        self.font14 = pygame.font.SysFont("consolas", 14)
         self.font18 = pygame.font.SysFont("consolas", 18)
         self.font24 = pygame.font.SysFont("consolas", 24)
         self.font32 = pygame.font.SysFont("consolas", 32)

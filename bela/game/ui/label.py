@@ -13,7 +13,7 @@ class Label(UIObject):
 
     def __init__(self, display: pygame.Surface, position: Tuple[int, int], size: Union[Tuple[int, int], str], font,
                  text: str = "", font_color: Color = Colors.black, bold: bool = False,
-                 text_orientation: str = "center", padding: int = 10):
+                 text_orientation: str = "center", padding: int = 10, fit_size_to_text: bool = True) -> None:
 
         super().__init__(display, position, size, padding)
 
@@ -26,11 +26,12 @@ class Label(UIObject):
         self.font = font
         self.text_orientation = text_orientation
         self.padding = padding
+        self.fit_size_to_text = fit_size_to_text
 
         self.is_hovering = False
 
         if self.size == "fit":
-            self.size = (float("inf"), float("inf"))
+            self.size = (0, 0)
 
         self.lines = [""]
         self.update_text()
@@ -63,6 +64,16 @@ class Label(UIObject):
 
             self.display.blit(t, (x, self.y - (len(self.lines) * (t.get_rect().h + 2) - 2) // 2
                                   + (t.get_rect().h + 2) * i))
+
+    def move(self, x: int = None, y: int = None, cx: bool = True, cy: bool = True) -> None:
+        if x is not None:
+            self.x = x
+            if not cx:
+                self.x += self.w // 2
+        if y is not None:
+            self.y = y
+            if not cy:
+                self.y += self.h // 2
 
     def update_text(self):
         words = self.text.split(" ")
@@ -100,15 +111,17 @@ class Label(UIObject):
         )
 
     def get_size(self) -> Tuple[int, int]:
-        x_size = 0
-        y_size = 0
-        for i, text in enumerate(self.lines):
-            t = self.get_text(text=text)
+        if self.fit_size_to_text or not self.size[0]:
+            x_size = 0
+            y_size = 0
+            for i, text in enumerate(self.lines):
+                t = self.get_text(text=text)
 
-            x_size = max(t.get_rect().w, x_size)
-            y_size = (len(self.lines) * (t.get_rect().h + 2) - 2)
+                x_size = max(t.get_rect().w, x_size)
+                y_size = (len(self.lines) * (t.get_rect().h + 2) - 2)
 
-        return x_size, y_size
+            return x_size, y_size
+        return self.size
 
     def get_pos(self) -> Tuple[int, int]:
         return self.x, self.y
@@ -119,13 +132,8 @@ class Label(UIObject):
     def set_size(self, size: Tuple[int, int]) -> None:
         self.size = size
 
-    def move(self, x: int = None, y: int = None, cx: bool = True, cy: bool = True) -> None:
-        self.x = x or self.x
-        self.y = y or self.y
-        if x and not cx:
-            self.x += self.w // 2
-        if y and not cy:
-            self.y += self.h // 2
+    def set_display(self, surface: pygame.Surface) -> None:
+        self.display = surface
 
     @staticmethod
     def render_text(surface, text, pos, font, color, bold: bool = False, centered: bool = True, alpha: int = -1):

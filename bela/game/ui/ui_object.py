@@ -46,3 +46,7 @@ class UIObject(ABC):
     @abstractmethod
     def set_size(self, size: Tuple[int, int]) -> None:
         """Sets the new size fot the UI object."""
+
+    @abstractmethod
+    def set_display(self, surface: pygame.Surface) -> None:
+        """Sets new display surface for the UI object."""

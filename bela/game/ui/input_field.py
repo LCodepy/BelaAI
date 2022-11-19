@@ -13,11 +13,11 @@ from bela.game.utils.colors import Color, Colors
 class InputField(UIObject):
 
     def __init__(self, display: pygame.Surface, position: Tuple[int, int], size: Tuple[int, int], font,
-                 center_x: bool = True, center_y: bool = True, hint: str = None,
-                 color: Optional[Color] = Colors.dark_red, font_color: Color = Colors.black, bold: bool = False,
+                 center_x: bool = True, center_y: bool = True, hint: str = "",
+                 color: Optional[Color] = None, font_color: Color = Colors.black, bold: bool = False,
                  padding: int = 0, border_color: Color = None, border_radius: int = 0, border_width: int = 2,
-                 text_underline: bool = True, max_length: int = None, text_orientation: str = "left",
-                 char_set: str = None) -> None:
+                 text_underline: bool = True, text_underline_color: Color = None, max_length: int = None,
+                 text_orientation: str = "left", char_set: str = None) -> None:
 
         super().__init__(display, position, size, padding, border_color, border_radius, border_width)
 
@@ -30,10 +30,12 @@ class InputField(UIObject):
         self.font_color = font_color
         self.bold = bold
         self.padding = padding
+        self.text_orientation = text_orientation
         self.border_color = border_color
         self.border_radius = border_radius
         self.border_width = border_width
         self.text_underline = text_underline
+        self.text_underline_color = text_underline_color
         self.max_length = max_length
         self.center_x = center_x
         self.center_y = center_y
@@ -108,20 +110,19 @@ class InputField(UIObject):
         self.label.font_color = self.font_color if self.text else self.hint_font_color
 
     def render(self) -> None:
-        if self.color is None:
-            return
-
         surf = pygame.Surface(self.rect.size, pygame.SRCALPHA)
 
-        pygame.draw.rect(surf, self.color.c, [0, 0, self.rect.w, self.rect.h], width=0,
-                         border_radius=self.border_radius)
+        if self.color:
+            pygame.draw.rect(surf, self.color.c, [0, 0, self.rect.w, self.rect.h], width=0,
+                             border_radius=self.border_radius)
+
         if self.border_color:
             pygame.draw.rect(surf, self.border_color.c, [0, 0, self.rect.w, self.rect.h],
                              width=self.border_width, border_radius=self.border_radius)
 
         if self.text_underline:
             pygame.draw.line(
-                surf, (self.border_color or self.color).c,
+                surf, (self.text_underline_color or self.border_color or self.font_color).c,
                 (10, self.h // 2 + self.label.get_size()[1] // 2),
                 (self.rect.w - 10, self.h // 2 + self.label.get_size()[1] // 2), self.border_width
             )
@@ -137,21 +138,31 @@ class InputField(UIObject):
 
         if self.show_cursor:
             label_w = self.label.get_size()[0] if self.text else 0
+            if self.text_orientation == "left":
+                x = self.x - self.w // 2 + self.padding + label_w
+            else:
+                x = self.x + label_w // 2
             pygame.draw.line(
                 self.display, self.font_color.c,
-                (self.x - self.w // 2 + self.padding + label_w, self.y - self.label.get_size()[1] // 2),
-                (self.x - self.w // 2 + self.padding + label_w, self.y + self.label.get_size()[1] // 2)
+                (x, self.y - self.label.get_size()[1] // 2),
+                (x, self.y + self.label.get_size()[1] // 2)
             )
 
     def move(self, x: int = None, y: int = None, cx: bool = True, cy: bool = True) -> None:
-        self.x = x or self.rect.x
-        self.y = y or self.rect.y
-        if x and not cx:
-            self.x += self.w // 2
-        if y and not cy:
-            self.y += self.h // 2
+        if x is not None:
+            self.x = x
+            if not cx:
+                self.x += self.w // 2
+        if y is not None:
+            self.y = y
+            if not cy:
+                self.y += self.h // 2
+
         self.rect.x = self.x
         self.rect.y = self.y
+
+    def get_text(self) -> str:
+        return self.text or self.hint
 
     def get_size(self) -> Tuple[int, int]:
         return self.rect.size
@@ -161,3 +172,6 @@ class InputField(UIObject):
 
     def set_size(self, size: Tuple[int, int]) -> None:
         self.w, self.h = size
+
+    def set_display(self, surface: pygame.Surface) -> None:
+        self.display = surface

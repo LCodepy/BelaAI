@@ -54,10 +54,10 @@ class Grid(UIObject):
 
     def create_grid(self) -> list[GridCell]:
         grid = []
-        for i in range(self.grid_size[1]):
-            for j in range(self.grid_size[0]):
-                w = self.rect.w // self.grid_size[0]
-                h = self.rect.h // self.grid_size[1]
+        for i in range(self.grid_size[0]):
+            for j in range(self.grid_size[1]):
+                w = self.rect.w // self.grid_size[1]
+                h = self.rect.h // self.grid_size[0]
                 grid.append(GridCell((i, j), (w, h), None, 0, 0))
         return grid
 
@@ -71,33 +71,30 @@ class Grid(UIObject):
             if cell.object:
                 cell.object.render()
 
-        if self.render_col_splitter:
-            for j in range(1, self.grid_size[1]):
-                pygame.draw.line(self.display, self.cell_splitter_color.c,
-                                 (self.rect.x + j * self.rect.w // self.grid_size[0], self.rect.y),
-                                 (self.rect.x + j * self.rect.w // self.grid_size[0], self.rect.y + self.rect.h))
-
         if self.render_row_splitter:
             for i in range(1, self.grid_size[0]):
                 pygame.draw.line(self.display, self.cell_splitter_color.c,
-                                 (self.rect.x, self.rect.y + i * self.rect.h // self.grid_size[1]),
-                                 (self.rect.x + self.rect.w, self.rect.y + i * self.rect.h // self.grid_size[1]))
+                                 (self.rect.x, self.rect.y + i * self.rect.h // self.grid_size[0]),
+                                 (self.rect.x + self.rect.w, self.rect.y + i * self.rect.h // self.grid_size[0]))
 
-        pygame.draw.rect(self.display, (255, 0, 0), self.rect, 1)
+        if self.render_col_splitter:
+            for j in range(1, self.grid_size[1]):
+                pygame.draw.line(self.display, self.cell_splitter_color.c,
+                                 (self.rect.x + j * self.rect.w // self.grid_size[1], self.rect.y),
+                                 (self.rect.x + j * self.rect.w // self.grid_size[1], self.rect.y + self.rect.h))
 
     def add_element(self, element: UIObject, row: int, col: int, pad_x: int = 0, pad_y: int = 0) -> Grid:
-        print()
         for cell in self.grid:
             if cell.grid_pos == (row, col):
                 cell.object = element
                 cell.pad_x = pad_x
                 cell.pad_y = pad_y
 
-                cell.object.x = (cell.grid_pos[1] - 0.5) * self.rect.w // self.grid_size[0]
-                cell.object.y = (cell.grid_pos[0] - 0.5) * self.rect.h // self.grid_size[1]
+                cell.object.set_display(self.display)
+                x = self.rect.x + int(self.rect.w // self.grid_size[1] * (cell.grid_pos[1] + 0.5))
+                y = self.rect.y + int(self.rect.h // self.grid_size[0] * (cell.grid_pos[0] + 0.5))
+                cell.object.move(x, y)
                 cell.object.update_vars()
-
-                print(cell.grid_pos, cell.object.get_center())
                 break
 
         return self
@@ -108,28 +105,26 @@ class Grid(UIObject):
         if not self.center_y:
             self.y += self.h // 2
 
-        last_x = self.rect.x
-        last_y = self.rect.y
-
         self.rect = pygame.Rect(self.x - self.w // 2, self.y - self.h // 2, self.w, self.h)
-
-        x_dist = self.rect.x - last_x
-        y_dist = self.rect.y - last_y
 
         for cell in self.grid:
             cell.size = (self.rect.w // self.grid_size[0], self.rect.h // self.grid_size[1])
             if cell.object:
-                x, y = cell.object.get_center()
-                cell.object.move(x + x_dist, y + y_dist)
+                cell.object.set_display(self.display)
+                x = self.rect.x + int(self.rect.w // self.grid_size[1] * (cell.grid_pos[1] + 0.5))
+                y = self.rect.y + int(self.rect.h // self.grid_size[0] * (cell.grid_pos[0] + 0.5))
+                cell.object.move(x, y)
                 cell.object.update_vars()
 
     def move(self, x: int = None, y: int = None, cx: bool = True, cy: bool = True) -> None:
-        self.x = x or self.rect.x
-        self.y = y or self.rect.y
-        if x and not cx:
-            self.x += self.w // 2
-        if y and not cy:
-            self.y += self.h // 2
+        if x is not None:
+            self.x = x
+            if not cx:
+                self.x += self.w // 2
+        if y is not None:
+            self.y = y
+            if not cy:
+                self.y += self.h // 2
 
         last_x = self.rect.x
         last_y = self.rect.y
@@ -147,6 +142,11 @@ class Grid(UIObject):
                 cell.object.move(x + x_dist, y + y_dist)
                 cell.object.update_vars()
 
+    def get_cell_element(self, grid_pos: Tuple[int, int]) -> None:
+        for cell in self.grid:
+            if cell.grid_pos == grid_pos:
+                return cell.object
+
     def get_size(self) -> Tuple[int, int]:
         return self.rect.size
 
@@ -155,3 +155,6 @@ class Grid(UIObject):
 
     def set_size(self, size: Tuple[int, int]) -> None:
         self.w, self.h = size
+
+    def set_display(self, surface: pygame.Surface) -> None:
+        self.display = surface

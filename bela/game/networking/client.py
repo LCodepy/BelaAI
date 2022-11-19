@@ -12,6 +12,7 @@ from bela.game.ui.button import Button
 from bela.game.ui.container import Container
 from bela.game.ui.grid import Grid
 from bela.game.ui.input_field import InputField
+from bela.game.ui.padding import Padding
 from bela.game.utils.animations import AnimationHandler, AnimationFactory
 from bela.game.utils.assets import Assets
 from bela.game.utils.gamestates import ClientGameStates
@@ -158,7 +159,7 @@ class Client:
 
         def on_create_new_game_btn_click(cls, x, y):
             cls.animation_handler.add_animation(
-                AnimationFactory.create_sliding_screen_animation(800, 130, "up", vel=40),
+                AnimationFactory.create_sliding_screen_animation(800, 390, "up", vel=40),
                 id_="#CREATE_NEW_GAME"
             )
             cls.update_lobby_new_game_container()
@@ -511,7 +512,13 @@ class Client:
                 bold=True
             ),
             id_="#TITLE",
-            pad_y=30
+            pad_y=20
+        ).add_element(
+            Padding(
+                self.canvas,
+                (0, 0),
+                (0, 40)
+            )
         ).add_element(
             InputField(
                 self.canvas,
@@ -529,7 +536,7 @@ class Client:
                 max_length=8,
                 text_underline=True
             ),
-            id_="GAME_NAME",
+            id_="#GAME_NAME",
             pad_y=10
         ).add_element(
             InputField(
@@ -549,44 +556,79 @@ class Client:
                 text_underline=True,
                 char_set="0123456789"
             ),
-            id_="GAME_NAME",
+            id_="#GAME_POINTS",
             pad_y=10
         ).add_element(
             Grid(
                 self.canvas,
                 (0, 0),
                 ("fit", "fit"),
-                (2, 2),
+                (3, 2),
                 render_col_splitter=True,
             ).add_element(
-                Label(
+                InputField(
                     self.canvas,
                     (0, 0),
-                    (200, 50),
+                    (150, 50),
                     self.assets.font24,
-                    text="IGRAČ 1",
-                    font_color=Colors.white,
-                    bold=True
+                    hint="Team Blue",
+                    font_color=Color(0, 0, 200),
+                    bold=True,
+                    border_radius=0,
+                    max_length=9,
+                    text_underline=True,
+                    text_underline_color=Color(0, 0, 200),
+                    text_orientation="center"
                 ), 0, 0
             ).add_element(
-                Label(
+                InputField(
                     self.canvas,
                     (0, 0),
-                    (200, 50),
+                    (150, 50),
                     self.assets.font24,
-                    text="IGRAČ 2",
-                    font_color=Colors.white,
-                    bold=True
+                    hint="Team Red",
+                    font_color=Color(200, 0, 0),
+                    bold=True,
+                    border_radius=0,
+                    max_length=9,
+                    text_underline=True,
+                    text_underline_color=Color(200, 0, 0),
+                    text_orientation="center"
                 ), 0, 1
             ).add_element(
-                Label(
+                Container(
                     self.canvas,
                     (0, 0),
-                    (200, 50),
-                    self.assets.font24,
-                    text="IGRAČ 3",
-                    font_color=Colors.white,
-                    bold=True
+                    (200, 80),
+                    Color(0, 0, 0, 0)
+                ).add_element(
+                    Padding(
+                        self.canvas,
+                        (0, 0),
+                        (0, 25)
+                    )
+                ).add_element(
+                    Label(
+                        self.canvas,
+                        (0, 0),
+                        (200, 25),
+                        self.assets.font24,
+                        text=self.nickname_input_field.get_text(),
+                        font_color=Color(230, 230, 230),
+                        bold=True,
+                        fit_size_to_text=False
+                    )
+                ).add_element(
+                    Label(
+                        self.canvas,
+                        (0, 0),
+                        (200, 10),
+                        self.assets.font14,
+                        text="ADMIN",
+                        font_color=Color(200, 200, 200),
+                        bold=True,
+                        fit_size_to_text=False
+                    )
                 ), 1, 0
             ).add_element(
                 Label(
@@ -594,13 +636,33 @@ class Client:
                     (0, 0),
                     (200, 50),
                     self.assets.font24,
-                    text="IGRAČ 4",
-                    font_color=Colors.white,
+                    text="IGRAČ 2",
+                    font_color=Color(200, 200, 200),
                     bold=True
                 ), 1, 1
+            ).add_element(
+                Label(
+                    self.canvas,
+                    (0, 0),
+                    (200, 50),
+                    self.assets.font24,
+                    text="IGRAČ 3",
+                    font_color=Color(200, 200, 200),
+                    bold=True
+                ), 2, 0
+            ).add_element(
+                Label(
+                    self.canvas,
+                    (0, 0),
+                    (200, 50),
+                    self.assets.font24,
+                    text="IGRAČ 4",
+                    font_color=Color(200, 200, 200),
+                    bold=True
+                ), 2, 1
             ),
-            id_="GRID1",
-            pad_y=20,
+            id_="#TEAM_GRID",
+            pad_y=35,
             pad_x=10,
             fit_x=True,
             fit_y=True

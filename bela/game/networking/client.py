@@ -159,7 +159,7 @@ class Client:
 
         def on_create_new_game_btn_click(cls, x, y):
             cls.animation_handler.add_animation(
-                AnimationFactory.create_sliding_screen_animation(800, 390, "up", vel=40),
+                AnimationFactory.create_sliding_screen_animation(1000, 390, "up", vel=40),
                 id_="#CREATE_NEW_GAME"
             )
             cls.update_lobby_new_game_container()
@@ -501,17 +501,26 @@ class Client:
                     container.update(self.event_handler)
 
     def update_lobby_new_game_container(self) -> None:
+        def on_create_new_game_btn_click(cls, x, y):
+            cls.animation_handler.add_animation(
+                AnimationFactory.create_sliding_screen_animation(390, 1000, "down", vel=40, remove_on_finish=True),
+                id_="#CREATE_NEW_GAME"
+            )
+
         self.lobby_new_game_container.add_element(
-            Label(
+            Button(
                 self.canvas,
                 (0, 0),
-                (200, 50),
+                (240, 50),
                 self.assets.font24,
                 text="NAPRAVI NOVU IGRU",
                 font_color=Colors.white,
-                bold=True
-            ),
-            id_="#TITLE",
+                bold=True,
+                color=Color(200, 100, 0),
+                border_radius=10,
+                border_color=Color(60, 10, 0)
+            ).set_on_click_listener(on_create_new_game_btn_click, self),
+            id_="#CREATE",
             pad_y=20
         ).add_element(
             Padding(

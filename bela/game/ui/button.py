@@ -128,10 +128,13 @@ class Button(UIObject):
         if not self.init:
             self.init = True
             self.init_time = time.time()
+
         if time.time() - self.init_time <= self.disable_time:
             return
 
         if self.color:
+            if self.text == "NOVA IGRA":
+                print(self.last_hovered, self.is_hovering)
             if self.last_hovered and not self.is_hovering:  # e.i. on_exit()
                 self.color = self.color.darker(50)
             elif not self.last_hovered and self.is_hovering:  # e.i. on_enter()

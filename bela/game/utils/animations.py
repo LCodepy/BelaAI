@@ -8,9 +8,10 @@ from bela.game.ui.label import Label
 
 class Animation(ABC):
 
-    def __init__(self) -> None:
+    def __init__(self, remove_on_finish: bool = False) -> None:
         self.finished = False
         self.just_finished = False
+        self.remove_on_finish = remove_on_finish
 
     @abstractmethod
     def update(self) -> None:
@@ -30,43 +31,47 @@ class Animation(ABC):
 class AnimationHandler:
 
     def __init__(self) -> None:
-        self.animations = []
+        self.animations = {}
 
     def update(self) -> None:
-        for i, animation in enumerate(self.animations):
-            animation[1].update()
+        to_remove = []
+
+        for id_, animation in self.animations.items():
+            if animation.remove_on_finish and animation.is_finished():
+                to_remove.append(id_)
+            else:
+                animation.update()
+
+        for id_ in to_remove:
+            self.animations.pop(id_)
 
     def add_animation(self, animation: Animation, id_: str = None) -> None:
-        self.animations.append([id_, animation])
+        self.animations[id_] = animation
 
     def remove_animation(self, id_: str) -> None:
         if not self.has(id_):
             return
-        idx = 0
-        for i, animation in enumerate(self.animations):
-            if animation[0] == id_:
-                idx = i
-        self.animations.pop(idx)
+
+        self.animations.pop(id_)
 
     def get_animation(self, id_: str) -> Optional[Animation]:
-        for animation in self.animations:
-            if animation[0] == id_:
-                return animation[1]
-        return
+        return self.animations[id_]
 
     def has(self, id_: str) -> bool:
-        return any(animation[0] == id_ for animation in self.animations)
+        return id_ in self.animations
 
 
 class TextShootDownAnimation(Animation):
 
-    def __init__(self, label1: Label, label2: Label, stop: int, y_vel: float, extra_labels: list[Label]) -> None:
-        super().__init__()
+    def __init__(self, label1: Label, label2: Label, stop: int, y_vel: float, extra_labels: list[Label],
+                 remove_on_finish: bool = False) -> None:
+        super().__init__(remove_on_finish)
         self.label1 = label1
         self.label2 = label2
         self.stop = stop
         self.y_vel = y_vel
         self.extra_labels = extra_labels or []
+        self.remove_on_finish = remove_on_finish
 
         self.label1_y = self.label1.get_pos()[1]
         self.label2_y = self.label2.get_pos()[1]
@@ -93,12 +98,14 @@ class TextShootDownAnimation(Animation):
 
 class FallingScreenAnimation(Animation):
 
-    def __init__(self, size: Tuple[int, int], start_y: float, stop_y: float, velocity: float) -> None:
-        super().__init__()
+    def __init__(self, size: Tuple[int, int], start_y: float, stop_y: float, velocity: float,
+                 remove_on_finish: bool = False) -> None:
+        super().__init__(remove_on_finish)
         self.w, self.h = size
         self.y = start_y
         self.stop_y = stop_y
         self.vel = velocity
+        self.remove_on_finish = remove_on_finish
 
         self.g = 0.98
         self.acc = self.g
@@ -128,11 +135,12 @@ class FallingScreenAnimation(Animation):
 
 class SlidingScreenAnimation(Animation):
 
-    def __init__(self, start: int, stop: int, direction: str, vel: float) -> None:
-        super().__init__()
+    def __init__(self, start: int, stop: int, direction: str, vel: float, remove_on_finish: bool = False) -> None:
+        super().__init__(remove_on_finish)
         self.start = start
         self.stop = stop
         self.direction = direction
+        self.remove_on_finish = remove_on_finish
         self.vel = []
 
         self.x = start
@@ -178,17 +186,19 @@ class AnimationFactory:
 
     @staticmethod
     def create_text_shoot_down_animation(label1: Label, label2: Label, stop: int, y_vel: float = 24,
-                                         extra_labels: list[Label] = None) -> Animation:
-        return TextShootDownAnimation(label1, label2, stop, y_vel, extra_labels)
+                                         extra_labels: list[Label] = None, remove_on_finish: bool = False) -> Animation:
+        return TextShootDownAnimation(label1, label2, stop, y_vel, extra_labels, remove_on_finish=remove_on_finish)
 
     @staticmethod
     def create_falling_screen_animation(size: Tuple[int, int], start_y: float = None, stop_y: float = 0,
-                                        velocity: float = 10.0) -> Animation:
-        return FallingScreenAnimation(size, start_y if start_y is not None else -size[1], stop_y, velocity)
+                                        velocity: float = 10.0, remove_on_finish: bool = False) -> Animation:
+        return FallingScreenAnimation(size, start_y if start_y is not None else -size[1], stop_y, velocity,
+                                      remove_on_finish=remove_on_finish)
 
     @staticmethod
-    def create_sliding_screen_animation(start: int, stop: int, direction: str, vel: float = 20) -> Animation:
-        return SlidingScreenAnimation(start, stop, direction, vel)
+    def create_sliding_screen_animation(start: int, stop: int, direction: str, vel: float = 20,
+                                        remove_on_finish: bool = False) -> Animation:
+        return SlidingScreenAnimation(start, stop, direction, vel, remove_on_finish=remove_on_finish)
 
 
 

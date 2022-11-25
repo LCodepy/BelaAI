@@ -6,7 +6,7 @@ from typing import Any
 
 import pygame
 
-from bela.game.main.bela import GameState, Hand, Card
+from bela.game.main.bela import GameState, Hand, Card, GameData
 from bela.game.networking.commands import Commands
 from bela.game.ui.button import Button
 from bela.game.ui.container import Container
@@ -506,6 +506,17 @@ class Client:
                 AnimationFactory.create_sliding_screen_animation(390, 1000, "down", vel=40, remove_on_finish=True),
                 id_="#CREATE_NEW_GAME"
             )
+            cls.create_new_game_button.update(self.event_handler)
+            cls.create_new_game_button.update(self.event_handler)
+
+            game_name = self.lobby_new_game_container.get_element("#GAME_NAME").get_text()
+            max_points = int(self.lobby_new_game_container.get_element("#GAME_POINTS").get_text())
+            teams = [
+                self.lobby_new_game_container.get_element("#TEAM_GRID").get_cell_element((0, 0)).get_text(),
+                self.lobby_new_game_container.get_element("#TEAM_GRID").get_cell_element((0, 1)).get_text()
+            ]
+
+            cls.data = self.network.send(Commands.new(Commands.CREATE_GAME, GameData(game_name, max_points, teams)))
 
         self.lobby_new_game_container.add_element(
             Button(

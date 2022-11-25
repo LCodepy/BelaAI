@@ -18,9 +18,9 @@ class GameState(Enum):
 @dataclass
 class GameData:
 
-    id_: str
     name: str
     max_points: int
+    team_names: Tuple[str, str]
 
 
 @dataclass

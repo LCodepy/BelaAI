@@ -55,7 +55,7 @@ class Server:
                 response = {"games": self.games}
 
                 if Commands.equals(data, Commands.CREATE_GAME):
-                    pass
+                    print(data.data)
 
                 elif Commands.equals(data, Commands.ENTER_GAME):
                     pass

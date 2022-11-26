@@ -73,16 +73,11 @@ class Bela:
     Class that contains most of the game logic and features.
     """
 
-    def __init__(self, id_: int, max_points: int = 1001) -> None:
-        self.id = id_
+    def __init__(self, max_points: int, teams: Tuple[str, str]) -> None:
         self.max_points = max_points
+        self.teams = teams
 
-        self.player_data = [
-            {"nickname": "", "ready": False},
-            {"nickname": "", "ready": False},
-            {"nickname": "", "ready": True},
-            {"nickname": "", "ready": True}
-        ]  # TODO: Replace with False
+        self.player_data: list[Optional[str]] = [None] * 4
 
         self.player_turn = 1
         self.diler = 0
@@ -501,6 +496,26 @@ class Bela:
         else:
             self.next_turn()
 
+    def add_player(self, nickname: str, team: int) -> bool:
+        if team == 0:
+            if self.player_data[0] is None:
+                self.player_data[0] = nickname
+            elif self.player_data[2] is None:
+                self.player_data[2] = nickname
+            else:
+                return False
+        elif team == 1:
+            if self.player_data[1] is None:
+                self.player_data[1] = nickname
+            elif self.player_data[3] is None:
+                self.player_data[3] = nickname
+            else:
+                return False
+        else:
+            return False
+
+        return True
+
     def player_has_bela(self, id_: int) -> bool:
         return ("kralj", self.adut) in self.cards[id_].sve and ("baba", self.adut) in self.cards[id_].sve
 
@@ -559,29 +574,15 @@ class Bela:
         return self.cards[id_].sve.index(card)
 
     def set_nickname(self, id_: int, nickname: str) -> None:
-        self.player_data[id_]["nickname"] = nickname
+        self.player_data[id_] = nickname
 
     def get_nickname(self, id_: int) -> str:
-        return self.player_data[id_]["nickname"]
+        return self.player_data[id_]
 
     def get_netalon(self, id_: int) -> list:
         return [card for card in self.cards[id_].sve if card in self.cards[id_].netalon]
-
-    def ready_up_player(self, id_: int, value: bool) -> None:
-        self.player_data[id_]["ready"] = value
 
     def is_match_over(self) -> bool:
         return sum(filter(lambda x: x is not None, map(lambda x: x[0], self.games))) > self.max_points or \
                sum(filter(lambda x: x is not None, map(lambda x: x[1], self.games))) > self.max_points
 
-    def is_player_ready(self, id_: int) -> bool:
-        return self.player_data[id_]["ready"]
-
-    def is_ready(self) -> bool:
-        return all(list(map(lambda d: d["ready"], self.player_data)))
-
-    def is_waiting(self) -> bool:
-        return any(list(map(lambda d: d["ready"], self.player_data)))
-
-    def get_ready_player_count(self) -> int:
-        return sum(list(map(lambda d: d["ready"], self.player_data)))

@@ -500,23 +500,26 @@ class Client:
                 if container.active:
                     container.update(self.event_handler)
 
+        self.data = self.network.send(Commands.new(Commands.CHANGE_NICKNAME, self.nickname_input_field.get_text()))
+
     def update_lobby_new_game_container(self) -> None:
         def on_create_new_game_btn_click(cls, x, y):
             cls.animation_handler.add_animation(
                 AnimationFactory.create_sliding_screen_animation(390, 1000, "down", vel=40, remove_on_finish=True),
                 id_="#CREATE_NEW_GAME"
             )
-            cls.create_new_game_button.update(self.event_handler)
-            cls.create_new_game_button.update(self.event_handler)
+            cls.create_new_game_button.update(cls.event_handler)
+            cls.create_new_game_button.update(cls.event_handler)
 
-            game_name = self.lobby_new_game_container.get_element("#GAME_NAME").get_text()
-            max_points = int(self.lobby_new_game_container.get_element("#GAME_POINTS").get_text())
-            teams = [
-                self.lobby_new_game_container.get_element("#TEAM_GRID").get_cell_element((0, 0)).get_text(),
-                self.lobby_new_game_container.get_element("#TEAM_GRID").get_cell_element((0, 1)).get_text()
-            ]
+            game_name = cls.lobby_new_game_container.get_element("#GAME_NAME").get_text()
+            max_points = int(cls.lobby_new_game_container.get_element("#GAME_POINTS").get_text())
+            teams = (
+                cls.lobby_new_game_container.get_element("#TEAM_GRID").get_cell_element((0, 0)).get_text(),
+                cls.lobby_new_game_container.get_element("#TEAM_GRID").get_cell_element((0, 1)).get_text()
+            )
 
-            cls.data = self.network.send(Commands.new(Commands.CREATE_GAME, GameData(game_name, max_points, teams)))
+            cls.data = cls.network.send(Commands.new(Commands.CREATE_GAME, GameData(game_name, max_points, teams)))
+            cls.data = cls.network.send(Commands.new(Commands.ENTER_GAME, game_name, 0))
 
         self.lobby_new_game_container.add_element(
             Button(

@@ -48,6 +48,8 @@ class Server:
     def client(self, connection, address):
         connection.send(pickle.dumps(address))
 
+        nickname = "Player"
+
         while True:
             try:
                 data = pickle.loads(connection.recv(self.buffer))
@@ -55,15 +57,27 @@ class Server:
                 response = {"games": self.games}
 
                 if Commands.equals(data, Commands.CREATE_GAME):
-                    print(data.data)
+                    game_data = data.data[0]
+                    if game_data.name in self.games:
+                        response["error"] = f"Igra {game_data.name} već postoji"
+                    else:
+                        self.games[game_data.name] = Bela(game_data.max_points, game_data.team_names)
 
                 elif Commands.equals(data, Commands.ENTER_GAME):
-                    pass
+                    game_name, team = data.data
+
+                    for name, game in self.games.items():
+                        if name == game_name:
+                            if not game.add_player(nickname, team):
+                                response["error"] = f"Igra {game_name} je već popunjena"
 
                 elif Commands.equals(data, Commands.CHANGE_NICKNAME):
-                    pass
+                    nickname = data.data[0]
 
                 connection.sendall(pickle.dumps(response))
+
+                for g in self.games:
+                    print(self.games[g].player_data)
 
             except (socket.error, EOFError, ):
                 Log.i("SERVER", f"Client {address} disconnected...")
@@ -87,9 +101,6 @@ class Server:
                 response = {"game": None, "data": {}}
 
                 # Check commands
-
-                if Commands.equals(data, Commands.READY_UP):
-                    game.ready_up_player(player_id, True)
 
                 if Commands.equals(data, Commands.PLAY_CARD):
                     if game.get_current_game_state() != GameState.IGRA or game.player_turn != player_id:

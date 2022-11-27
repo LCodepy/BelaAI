@@ -76,9 +76,6 @@ class Server:
 
                 connection.sendall(pickle.dumps(response))
 
-                for g in self.games:
-                    print(self.games[g].player_data)
-
             except (socket.error, EOFError, ):
                 Log.i("SERVER", f"Client {address} disconnected...")
                 connection.close()

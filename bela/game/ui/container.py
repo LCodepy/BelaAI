@@ -133,6 +133,10 @@ class Container(UIObject):
             if element.id == id_:
                 return element.object
 
+    def reset(self) -> None:
+        self.elements.clear()
+        self.current_y = 0
+
     def move(self, x: int = None, y: int = None, cx: bool = True, cy: bool = True) -> None:
         if x is not None:
             self.x = x

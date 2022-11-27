@@ -33,7 +33,7 @@ class Client:
 
     def __init__(self):
 
-        self.network = Network(buffer=4096)
+        self.network = Network(buffer=8180)
 
         self.win = pygame.display.set_mode(config.WINDOW_SIZE, pygame.SRCALPHA)
         pygame.display.set_caption(f"Bela")
@@ -62,7 +62,7 @@ class Client:
         self.clock = pygame.time.Clock()
         self.__fps = 60
 
-        self.data: dict[str, Any] = {"game": None}
+        self.data: dict[str, Any] = {"games": {}, "game": None}
 
         self.__player = 0
         self.__client_id = 0
@@ -158,6 +158,8 @@ class Client:
             pass
 
         def on_create_new_game_btn_click(cls, x, y):
+            if len(cls.data["games"]) >= 8:
+                print("Maksimalni broj igara je 8.")
             cls.animation_handler.add_animation(
                 AnimationFactory.create_sliding_screen_animation(1000, 390, "up", vel=40),
                 id_="#CREATE_NEW_GAME"
@@ -282,7 +284,7 @@ class Client:
             Container(
                 self.canvas, ((self.canvas.get_width() - 4 * 180 + 30) // 2 + 75 + j * 180, 170 + i * 190), (150, 170),
                 Color(0, 0, 20), border_color=Color(40, 40, 60), border_radius=8, border_width=1, active=False
-            ) for j in range(4) for i in range(2)
+            ) for i in range(2) for j in range(4)
         ]
 
         self.lobby_new_game_container = Container(
@@ -487,6 +489,8 @@ class Client:
         self.options_btn.update(self.event_handler)
 
     def update_lobby(self) -> None:
+        self.update_lobby_game_containers()
+
         if self.animation_handler.has("#CREATE_NEW_GAME"):
             self.lobby_new_game_container.move(
                 y=self.animation_handler.get_animation("#CREATE_NEW_GAME").get_current_data()
@@ -501,6 +505,26 @@ class Client:
                     container.update(self.event_handler)
 
         self.data = self.network.send(Commands.new(Commands.CHANGE_NICKNAME, self.nickname_input_field.get_text()))
+
+    def update_lobby_game_containers(self) -> None:
+        for i, (game_name, game) in enumerate(self.data["games"].items()):
+            if not self.lobby_game_containers[i].active:
+                self.lobby_game_containers[i].active = True
+                self.lobby_game_containers[i].color = Color(150, 100, 200)
+                self.lobby_game_containers[i].border_color = None
+                self.lobby_game_containers[i].add_element(
+                    Label(
+                        self.canvas,
+                        (0, 0),
+                        (100, 50),
+                        self.assets.font24,
+                        text=game_name,
+                        font_color=Colors.white,
+                        bold=True
+                    ),
+                    id_="#TITLE",
+                    pad_y=5
+                )
 
     def update_lobby_new_game_container(self) -> None:
         def on_create_new_game_btn_click(cls, x, y):
@@ -521,6 +545,7 @@ class Client:
             cls.data = cls.network.send(Commands.new(Commands.CREATE_GAME, GameData(game_name, max_points, teams)))
             cls.data = cls.network.send(Commands.new(Commands.ENTER_GAME, game_name, 0))
 
+        self.lobby_new_game_container.reset()
         self.lobby_new_game_container.add_element(
             Button(
                 self.canvas,
@@ -548,7 +573,7 @@ class Client:
                 (0, 0),
                 (200, 30),
                 self.assets.font24,
-                hint="Game_0",  # TODO: replace with the current game count
+                hint="Game_" + str(len(self.data["games"])),
                 color=Color(100, 100, 100, 100),
                 font_color=Colors.white,
                 bold=True,
@@ -752,7 +777,6 @@ class Client:
                         countdown = 0
                     self.timer_handler.add_timer_during_exec("SHOW_ZVANJA", countdown, self.finish_zvanja, self)
                     self.zvanja_timer_created = True
-                self.update_game_zvanje()
 
         self.sort_cards_button.update(self.event_handler)
 
@@ -782,9 +806,6 @@ class Client:
             if self.event_handler.presses["right"] and card.rect.collidepoint(self.event_handler.get_pos()):
                 self.selected_cards[len(self.inventory) - i - 1] = not self.selected_cards[len(self.inventory) - i - 1]
                 break
-
-    def update_game_zvanje(self) -> None:
-        pass
 
     def update_cards(self) -> None:
         self.update_cards_in_inventory()

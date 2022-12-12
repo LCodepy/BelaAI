@@ -63,6 +63,18 @@ class Server:
                     else:
                         self.games[game_data.name] = Bela(game_data.max_points, game_data.team_names)
 
+                elif Commands.equals(data, Commands.REMOVE_GAME):
+                    idx = data.data[0]
+                    if idx >= len(self.games):
+                        response["error"] = f"Igra ne postoji"
+                    else:
+                        game_name = ""
+                        for i, (name, _) in enumerate(sorted(self.games.items(), key=lambda g: g[1].start_time)):
+                            if idx == i:
+                                game_name = name
+
+                        self.games.pop(game_name)
+
                 elif Commands.equals(data, Commands.ENTER_GAME):
                     game_name, team = data.data
 

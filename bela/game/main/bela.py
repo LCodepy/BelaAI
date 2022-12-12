@@ -1,4 +1,5 @@
 import random
+import time
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from itertools import chain
@@ -76,6 +77,7 @@ class Bela:
     def __init__(self, max_points: int, teams: Tuple[str, str]) -> None:
         self.max_points = max_points
         self.teams = teams
+        self.start_time = time.time()
 
         self.player_data: list[Optional[str]] = [None] * 4
 

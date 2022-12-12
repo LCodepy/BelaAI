@@ -507,7 +507,35 @@ class Client:
         self.data = self.network.send(Commands.new(Commands.CHANGE_NICKNAME, self.nickname_input_field.get_text()))
 
     def update_lobby_game_containers(self) -> None:
-        for i, (game_name, game) in enumerate(self.data["games"].items()):
+        def on_remove_game_btn_click(cls, x, y, btn):
+            cls.lobby_game_containers[btn.id_].color = Color(0, 0, 20)
+            cls.lobby_game_containers[btn.id_].border_color = Color(40, 40, 60)
+            cls.lobby_game_containers[btn.id_].reset()
+            cls.lobby_game_containers[btn.id_].active = False
+
+            cls.data = cls.network.send(Commands.new(Commands.REMOVE_GAME, btn.id_))
+
+            y = 0
+            y2 = 0
+            for j in range(btn.id_, len(cls.lobby_game_containers)-1):
+                x = j
+                x2 = j+1
+                if j > 3:
+                    x -= 4
+                    y = 1
+                if x2 > 3:
+                    x2 -= 4
+                    y2 = 1
+
+                if cls.lobby_game_containers[j+1].active:
+                    cls.lobby_game_containers[j], cls.lobby_game_containers[j+1] = cls.lobby_game_containers[j+1], cls.lobby_game_containers[j]
+                    cls.lobby_game_containers[j].move(x=(self.canvas.get_width() - 4 * 180 + 30) // 2 + 75 + x * 180,
+                                                      y=170 + y * 190)
+                    cls.lobby_game_containers[j+1].move(x=(self.canvas.get_width() - 4 * 180 + 30) // 2 + 75 + x2 * 180,
+                                                        y=170 + y2 * 190)
+                    cls.lobby_game_containers[j].get_element("#CLOSE_BTN").id_ = j
+
+        for i, (game_name, game) in enumerate(sorted(self.data["games"].items(), key=lambda g: g[1].start_time)):
             if not self.lobby_game_containers[i].active:
                 self.lobby_game_containers[i].active = True
                 self.lobby_game_containers[i].color = Color(150, 100, 200)
@@ -524,6 +552,20 @@ class Client:
                     ),
                     id_="#TITLE",
                     pad_y=5
+                ).add_element(
+                    Button(
+                        self.canvas,
+                        (0, 0),
+                        (10, 10),
+                        self.assets.font24,
+                        color=Color(200, 200, 200),
+                        img="x",
+                        hover_effects=False,
+                        id_=i
+                    ).set_on_click_listener(on_remove_game_btn_click, self, pass_self=True),
+                    abs_x=self.lobby_game_containers[i].get_size()[0] - 14,
+                    abs_y=14,
+                    id_="#CLOSE_BTN"
                 )
 
     def update_lobby_new_game_container(self) -> None:

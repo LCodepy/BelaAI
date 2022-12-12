@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 import pygame
 
 from bela.game.events.events import EventHandler
@@ -14,10 +14,10 @@ from bela.game.utils.colors import *
 class Button(UIObject):
 
     def __init__(self, display: pygame.Surface, position: Tuple[int, int], size: Tuple[int, int], font,
-                 center_x: bool = True, center_y: bool = True, text: str = None, img: pygame.Surface = None,
+                 center_x: bool = True, center_y: bool = True, text: str = None, img: Union[pygame.Surface, str] = None,
                  color: Optional[Color] = Colors.dark_red, font_color: Color = Colors.black, bold: bool = False,
                  text_orientation: str = "center", padding: int = 0, border_color: Color = None, border_radius: int = 0,
-                 border_width: int = 2) -> None:
+                 border_width: int = 2, hover_effects: bool = True, id_: int = None) -> None:
 
         super().__init__(display, position, size, padding, border_color, border_radius, border_width)
 
@@ -37,6 +37,8 @@ class Button(UIObject):
         self.border_width = border_width
         self.center_x = center_x
         self.center_y = center_y
+        self.hover_effects = hover_effects
+        self.id_ = id_
 
         self.label = None
         if self.text is not None:
@@ -58,7 +60,7 @@ class Button(UIObject):
         if not center_y:
             self.y += self.h // 2
 
-        if self.img is not None:
+        if self.img is not None and isinstance(self.img, pygame.Surface):
             self.img = pygame.transform.scale(img, size)
 
         self.rect = pygame.Rect(self.x - self.w // 2, self.y - self.h // 2, self.w, self.h)
@@ -109,7 +111,7 @@ class Button(UIObject):
         if not self.center_y:
             self.y += self.h // 2
 
-        if self.img is not None:
+        if self.img is not None and isinstance(self.img, pygame.Surface):
             self.img = pygame.transform.scale(self.img, self.size)
 
         self.rect = pygame.Rect(self.x - self.w // 2, self.y - self.h // 2, self.w, self.h)
@@ -132,7 +134,7 @@ class Button(UIObject):
         if time.time() - self.init_time <= self.disable_time:
             return
 
-        if self.color:
+        if self.color and self.hover_effects:
             if self.last_hovered and not self.is_hovering:  # e.i. on_exit()
                 self.color = self.color.darker(50)
             elif not self.last_hovered and self.is_hovering:  # e.i. on_enter()
@@ -201,7 +203,14 @@ class Button(UIObject):
         self.display.blit(surf, (self.rect.x, self.rect.y))
 
     def render_image(self) -> None:
-        self.display.blit(self.img, (self.rect.x, self.rect.y))
+        if isinstance(self.img, str):
+            if self.img == "x":
+                pygame.draw.line(self.display, self.color.c, self.rect.topleft, self.rect.bottomright, self.border_width)
+                pygame.draw.line(self.display, self.color.c, self.rect.topright, self.rect.bottomleft, self.border_width)
+            if self.img == "o":
+                pygame.draw.circle(self.display, self.color.c, self.rect.center, self.rect.w // 2)
+        else:
+            self.display.blit(self.img, (self.rect.x, self.rect.y))
 
     def on_hover(self, x: int, y: int) -> None:
         pass

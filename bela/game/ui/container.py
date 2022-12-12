@@ -101,11 +101,22 @@ class Container(UIObject):
             element.object.render()
 
     def add_element(self, element: UIObject, id_: str = None, pad_x: int = 0, pad_y: int = 0,
-                    fit_x: bool = False, fit_y: bool = False) -> Container:
+                    fit_x: bool = False, fit_y: bool = False, abs_x: int = None, abs_y: int = None) -> Container:
         if id_ is None:
             id_ = str(id(element))
 
         element.display = self.surface
+
+        if abs_x or abs_y:  # if absolute position of the element is set
+            element.move(abs_x or self.w // 2, abs_y or self.h // 2)
+            element.update_vars()
+
+            self.elements.append(
+                UIObjectWrapper(id_, element, 0, 0, False, False)
+            )
+            return self
+
+        # if relative position of the element is set
 
         self.current_y += pad_y
 

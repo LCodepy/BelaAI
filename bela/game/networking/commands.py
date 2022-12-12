@@ -15,6 +15,7 @@ class Commands:
 
     GET = Command("GET", None)
     CREATE_GAME = Command("CREATE_GAME", (GameData, ))
+    REMOVE_GAME = Command("REMOVE_GAME", (int, ))
     ENTER_GAME = Command("ENTER_GAME", (str, ))
     CHANGE_NICKNAME = Command("CHANGE_NICKNAME", (str, ))
     READY_UP = Command("READY_UP", None)

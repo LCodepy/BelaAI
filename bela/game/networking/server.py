@@ -22,6 +22,7 @@ class Server:
 
         self.games = {}
         self.clients = []
+        self.admins = {}
 
         Log.i("SERVER", f"Started on port {22222}")
 
@@ -48,13 +49,13 @@ class Server:
     def client(self, connection, address):
         connection.send(pickle.dumps(address))
 
-        nickname = "Player"
+        nickname = f"Player {len(self.clients)-1}"
 
         while True:
             try:
                 data = pickle.loads(connection.recv(self.buffer))
 
-                response = {"games": self.games}
+                response = {"games": self.games, "admins": self.admins, "error": None}
 
                 if Commands.equals(data, Commands.CREATE_GAME):
                     game_data = data.data[0]
@@ -62,6 +63,7 @@ class Server:
                         response["error"] = f"Igra {game_data.name} već postoji"
                     else:
                         self.games[game_data.name] = Bela(game_data.max_points, game_data.team_names)
+                        self.admins[game_data.name] = address
 
                 elif Commands.equals(data, Commands.REMOVE_GAME):
                     idx = data.data[0]
@@ -74,6 +76,7 @@ class Server:
                                 game_name = name
 
                         self.games.pop(game_name)
+                        self.admins.pop(game_name)
 
                 elif Commands.equals(data, Commands.ENTER_GAME):
                     game_name, team = data.data

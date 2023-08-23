@@ -42,6 +42,8 @@ class Container(UIObject):
 
         self.surface = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
 
+        self.info = {}
+
         if not center_x:
             self.x += self.w // 2
         if not center_y:

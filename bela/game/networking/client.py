@@ -508,35 +508,21 @@ class Client:
 
     def update_lobby_game_containers(self) -> None:
         def on_remove_game_btn_click(cls, x, y, btn):
-            cls.lobby_game_containers[btn.id_].color = Color(0, 0, 20)
-            cls.lobby_game_containers[btn.id_].border_color = Color(40, 40, 60)
-            cls.lobby_game_containers[btn.id_].reset()
-            cls.lobby_game_containers[btn.id_].active = False
-
             cls.data = cls.network.send(Commands.new(Commands.REMOVE_GAME, btn.id_))
 
-            y = 0
-            y2 = 0
-            for j in range(btn.id_, len(cls.lobby_game_containers)-1):
-                x = j
-                x2 = j+1
-                if j > 3:
-                    x -= 4
-                    y = 1
-                if x2 > 3:
-                    x2 -= 4
-                    y2 = 1
+        def on_join_btn_click(cls, x, y):
+            pass
 
-                if cls.lobby_game_containers[j+1].active:
-                    cls.lobby_game_containers[j], cls.lobby_game_containers[j+1] = cls.lobby_game_containers[j+1], cls.lobby_game_containers[j]
-                    cls.lobby_game_containers[j].move(x=(self.canvas.get_width() - 4 * 180 + 30) // 2 + 75 + x * 180,
-                                                      y=170 + y * 190)
-                    cls.lobby_game_containers[j+1].move(x=(self.canvas.get_width() - 4 * 180 + 30) // 2 + 75 + x2 * 180,
-                                                        y=170 + y2 * 190)
-                    cls.lobby_game_containers[j].get_element("#CLOSE_BTN").id_ = j
+        for i, (game_name, game) in enumerate(sorted(self.data["games"].items(), key=lambda g: g[1].start_time)):
+            if "game_name" in self.lobby_game_containers[i].info and self.lobby_game_containers[i].info["game_name"] != game_name:
+                self.remove_lobby_container(i)
+
+        if len(self.data["games"]) < len(list(filter(lambda c: c.active, self.lobby_game_containers))):
+            self.remove_lobby_container(len(self.data["games"]))
 
         for i, (game_name, game) in enumerate(sorted(self.data["games"].items(), key=lambda g: g[1].start_time)):
             if not self.lobby_game_containers[i].active:
+                self.lobby_game_containers[i].info["game_name"] = game_name
                 self.lobby_game_containers[i].active = True
                 self.lobby_game_containers[i].color = Color(150, 100, 200)
                 self.lobby_game_containers[i].border_color = None
@@ -553,20 +539,98 @@ class Client:
                     id_="#TITLE",
                     pad_y=5
                 ).add_element(
-                    Button(
+                    Grid(
                         self.canvas,
                         (0, 0),
-                        (10, 10),
-                        self.assets.font24,
-                        color=Color(200, 200, 200),
-                        img="x",
-                        hover_effects=False,
-                        id_=i
-                    ).set_on_click_listener(on_remove_game_btn_click, self, pass_self=True),
-                    abs_x=self.lobby_game_containers[i].get_size()[0] - 14,
-                    abs_y=14,
-                    id_="#CLOSE_BTN"
+                        ("fit", "fit"),
+                        (3, 2),
+                        render_col_splitter=True,
+                    ).add_element(
+                        Label(
+                            self.canvas,
+                            (0, 0),
+                            (30, 20),
+                            self.assets.font14,
+                            text=game.teams[0],
+                            font_color=Color(0, 0, 200),
+                            bold=True,
+                            text_orientation="center"
+                        ), 0, 0
+                    ).add_element(
+                        Label(
+                            self.canvas,
+                            (0, 0),
+                            (60, 20),
+                            self.assets.font14,
+                            text=game.teams[1],
+                            font_color=Color(200, 0, 0),
+                            bold=True,
+                            text_orientation="center"
+                        ), 0, 1
+                    ).add_element(
+                        Label(
+                            self.canvas,
+                            (0, 0),
+                            (60, 20),
+                            self.assets.font14,
+                            text=self.nickname_input_field.get_text(),
+                            font_color=Color(230, 230, 230),
+                            bold=True,
+                            fit_size_to_text=False
+                        ), 1, 0
+                    ).add_element(
+                        Label(
+                            self.canvas,
+                            (0, 0),
+                            (60, 20),
+                            self.assets.font14,
+                            text="IGRAČ 2",
+                            font_color=Color(200, 200, 200),
+                            bold=True
+                        ), 1, 1
+                    ).add_element(
+                        Label(
+                            self.canvas,
+                            (0, 0),
+                            (60, 20),
+                            self.assets.font14,
+                            text="IGRAČ 3",
+                            font_color=Color(200, 200, 200),
+                            bold=True
+                        ), 2, 0
+                    ).add_element(
+                        Label(
+                            self.canvas,
+                            (0, 0),
+                            (60, 20),
+                            self.assets.font14,
+                            text="IGRAČ 4",
+                            font_color=Color(200, 200, 200),
+                            bold=True
+                        ), 2, 1
+                    ),
+                    id_="#TEAM_GRID",
+                    pad_y=10,
+                    pad_x=10,
+                    fit_x=True,
+                    fit_y=True
                 )
+                if self.data["admins"][game_name] == self.__client_id:
+                    self.lobby_game_containers[i].add_element(
+                        Button(
+                            self.canvas,
+                            (0, 0),
+                            (10, 10),
+                            self.assets.font24,
+                            color=Color(200, 200, 200),
+                            img="x",
+                            hover_effects=False,
+                            id_=i
+                        ).set_on_click_listener(on_remove_game_btn_click, self, pass_self=True),
+                        abs_x=self.lobby_game_containers[i].get_size()[0] - 14,
+                        abs_y=14,
+                        id_="#CLOSE_BTN"
+                    )
 
     def update_lobby_new_game_container(self) -> None:
         def on_create_new_game_btn_click(cls, x, y):
@@ -1552,6 +1616,36 @@ class Client:
 
         for k in to_add:
             self.timed_actions[1][k[0]] = k[1:]
+
+    def remove_lobby_container(self, btn_id) -> None:
+        self.lobby_game_containers[btn_id].color = Color(0, 0, 20)
+        self.lobby_game_containers[btn_id].border_color = Color(40, 40, 60)
+        self.lobby_game_containers[btn_id].reset()
+        self.lobby_game_containers[btn_id].active = False
+
+        y = 0
+        y2 = 0
+        for j in range(btn_id, len(self.lobby_game_containers) - 1):
+            x = j
+            x2 = j + 1
+            if j > 3:
+                x -= 4
+                y = 1
+            if x2 > 3:
+                x2 -= 4
+                y2 = 1
+
+            if self.lobby_game_containers[j + 1].active:
+                self.lobby_game_containers[j], self.lobby_game_containers[j + 1] = self.lobby_game_containers[j + 1], \
+                                                                                 self.lobby_game_containers[j]
+                self.lobby_game_containers[j].move(x=(self.canvas.get_width() - 4 * 180 + 30) // 2 + 75 + x * 180,
+                                                   y=170 + y * 190)
+                self.lobby_game_containers[j + 1].move(
+                    x=(self.canvas.get_width() - 4 * 180 + 30) // 2 + 75 + x2 * 180,
+                    y=170 + y2 * 190)
+
+                if self.lobby_game_containers[j].get_element("#CLOSE_BTN"):
+                    self.lobby_game_containers[j].get_element("#CLOSE_BTN").id_ = j
 
     def end_current_game(self) -> None:
         self.data = self.network.send(Commands.END_GAME)

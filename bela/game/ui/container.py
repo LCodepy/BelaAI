@@ -1,10 +1,11 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Callable
 
 import pygame
 
 from bela.game.events.events import EventHandler
+from bela.game.ui.button import Button
 from bela.game.ui.ui_object import UIObject
 from bela.game.utils.colors import Color
 
@@ -41,6 +42,9 @@ class Container(UIObject):
         self.active = active
 
         self.surface = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
+
+        self.button = Button(self.display, position, size, None, center_x=center_x,
+                             center_y=center_y, padding=padding, color=Color(0, 0, 0, 0))
 
         self.info = {}
 
@@ -87,6 +91,8 @@ class Container(UIObject):
         for element in self.elements:
             element.object.update(event_handler.filtered(self.rect.x, self.rect.y))
 
+        self.button.update(event_handler)
+
     def render(self) -> None:
         pygame.draw.rect(self.surface, self.color.c, [0, 0, self.rect.w, self.rect.h], width=0,
                          border_radius=self.border_radius)
@@ -97,6 +103,7 @@ class Container(UIObject):
         self.render_elements()
 
         self.display.blit(self.surface, (self.rect.x, self.rect.y))
+        self.button.render()
 
     def render_elements(self) -> None:
         for element in self.elements:
@@ -161,6 +168,39 @@ class Container(UIObject):
                 self.y += self.h // 2
 
         self.rect = pygame.Rect(self.x - self.w // 2, self.y - self.h // 2, self.w, self.h)
+        self.button.move(x, y, cx, cy)
+
+    def on_hover(self, x: int, y: int) -> None:
+        pass
+
+    def on_click(self, x: int, y: int) -> None:
+        pass
+
+    def on_hold(self, x: int, y: int) -> None:
+        pass
+
+    # Getters and Setters
+
+    def set_on_hover_listener(self, listener: Callable, cls, pass_self: bool = False) -> Container:
+        if pass_self:
+            self.button.set_on_hover_listener(listener, cls, args=(self, ))
+        else:
+            self.button.set_on_hover_listener(listener, cls)
+        return self
+
+    def set_on_click_listener(self, listener: Callable, cls, pass_self: bool = False) -> Container:
+        if pass_self:
+            self.button.set_on_click_listener(listener, cls, args=(self, ))
+        else:
+            self.button.set_on_click_listener(listener, cls)
+        return self
+
+    def set_on_hold_listener(self, listener: Callable, cls, pass_self: bool = False) -> Container:
+        if pass_self:
+            self.button.set_on_hold_listener(listener, cls, args=(self, ))
+        else:
+            self.button.set_on_hold_listener(listener, cls)
+        return self
 
     def get_size(self) -> Tuple[int, int]:
         return self.rect.size

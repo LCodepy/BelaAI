@@ -588,3 +588,5 @@ class Bela:
         return sum(filter(lambda x: x is not None, map(lambda x: x[0], self.games))) > self.max_points or \
                sum(filter(lambda x: x is not None, map(lambda x: x[1], self.games))) > self.max_points
 
+    def is_full(self) -> bool:
+        return all(self.player_data)

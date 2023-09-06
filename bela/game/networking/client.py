@@ -62,7 +62,7 @@ class Client:
         self.clock = pygame.time.Clock()
         self.__fps = 60
 
-        self.data: dict[str, Any] = {"games": {}, "game": None}
+        self.data: dict[str, Any] = {"games": {}, "admins": {}, "error": None}
 
         self.__player = 0
         self.__client_id = 0
@@ -109,6 +109,8 @@ class Client:
         self.ended_game = False
         self.end_game = False
         self.end_match = False
+
+        self.is_in_game = False
 
         self.score_y_offset = 15
 
@@ -159,7 +161,8 @@ class Client:
 
         def on_create_new_game_btn_click(cls, x, y):
             if len(cls.data["games"]) >= 8:
-                print("Maksimalni broj igara je 8.")
+                # TODO: error msg
+                return
             cls.animation_handler.add_animation(
                 AnimationFactory.create_sliding_screen_animation(1000, 390, "up", vel=40),
                 id_="#CREATE_NEW_GAME"
@@ -268,7 +271,7 @@ class Client:
             (self.canvas.get_width() // 2, 40),
             (250, 40),
             self.assets.font24,
-            hint="Player",
+            hint=f"Player {self.__client_id}",
             color=Color(100, 100, 100, 30),
             font_color=Colors.white,
             bold=True,
@@ -448,6 +451,7 @@ class Client:
         self.network.connect()
         self.network.update_connection()
         self.__client_id = self.network.client_id
+        self.nickname_input_field.hint = f"Player {self.__client_id}"
 
     def update(self):
         if self.game_state not in (ClientGameStates.MAIN_MENU, ClientGameStates.UNDEFINED):
@@ -496,6 +500,11 @@ class Client:
                 y=self.animation_handler.get_animation("#CREATE_NEW_GAME").get_current_data()
             )
             self.lobby_new_game_container.update(self.event_handler)
+            if self.event_handler.releases["left"] and not self.lobby_new_game_container.button.is_clicked:
+                self.animation_handler.add_animation(
+                    AnimationFactory.create_sliding_screen_animation(390, 1000, "down", vel=40, remove_on_finish=True),
+                    id_="#CREATE_NEW_GAME"
+                )
         else:
             self.create_new_game_button.update(self.event_handler)
             self.nickname_input_field.update(self.event_handler)
@@ -510,8 +519,8 @@ class Client:
         def on_remove_game_btn_click(cls, x, y, btn):
             cls.data = cls.network.send(Commands.new(Commands.REMOVE_GAME, btn.id_))
 
-        def on_join_btn_click(cls, x, y):
-            pass
+        def on_container_click(cls, x, y, container):
+            cls.on_lobby_container_click(container)
 
         for i, (game_name, game) in enumerate(sorted(self.data["games"].items(), key=lambda g: g[1].start_time)):
             if "game_name" in self.lobby_game_containers[i].info and self.lobby_game_containers[i].info["game_name"] != game_name:
@@ -539,17 +548,24 @@ class Client:
                     id_="#TITLE",
                     pad_y=5
                 ).add_element(
+                    Padding(
+                        self.canvas,
+                        (0, 0),
+                        (100, 10)
+                    )
+                ).add_element(
                     Grid(
                         self.canvas,
                         (0, 0),
                         ("fit", "fit"),
                         (3, 2),
                         render_col_splitter=True,
+                        cell_splitter_color=Color(200, 200, 200)
                     ).add_element(
                         Label(
                             self.canvas,
                             (0, 0),
-                            (30, 20),
+                            (60, 20),
                             self.assets.font14,
                             text=game.teams[0],
                             font_color=Color(0, 0, 200),
@@ -571,9 +587,9 @@ class Client:
                         Label(
                             self.canvas,
                             (0, 0),
-                            (60, 20),
+                            (60, 15),
                             self.assets.font14,
-                            text=self.nickname_input_field.get_text(),
+                            text="...",
                             font_color=Color(230, 230, 230),
                             bold=True,
                             fit_size_to_text=False
@@ -582,9 +598,9 @@ class Client:
                         Label(
                             self.canvas,
                             (0, 0),
-                            (60, 20),
+                            (60, 15),
                             self.assets.font14,
-                            text="IGRAČ 2",
+                            text="...",
                             font_color=Color(200, 200, 200),
                             bold=True
                         ), 1, 1
@@ -592,9 +608,9 @@ class Client:
                         Label(
                             self.canvas,
                             (0, 0),
-                            (60, 20),
+                            (60, 15),
                             self.assets.font14,
-                            text="IGRAČ 3",
+                            text="...",
                             font_color=Color(200, 200, 200),
                             bold=True
                         ), 2, 0
@@ -602,9 +618,9 @@ class Client:
                         Label(
                             self.canvas,
                             (0, 0),
-                            (60, 20),
+                            (60, 15),
                             self.assets.font14,
-                            text="IGRAČ 4",
+                            text="...",
                             font_color=Color(200, 200, 200),
                             bold=True
                         ), 2, 1
@@ -614,7 +630,7 @@ class Client:
                     pad_x=10,
                     fit_x=True,
                     fit_y=True
-                )
+                ).set_on_click_listener(on_container_click, self, pass_self=True)
                 if self.data["admins"][game_name] == self.__client_id:
                     self.lobby_game_containers[i].add_element(
                         Button(
@@ -631,25 +647,17 @@ class Client:
                         abs_y=14,
                         id_="#CLOSE_BTN"
                     )
+            else:
+                grid = self.lobby_game_containers[i].get_element("#TEAM_GRID")
+                container_game = self.data["games"][self.lobby_game_containers[i].info["game_name"]]
+                grid.get_cell_element((1, 0)).set_text(container_game.player_data[0])
+                grid.get_cell_element((1, 1)).set_text(container_game.player_data[2] or "...")
+                grid.get_cell_element((2, 0)).set_text(container_game.player_data[1] or "...")
+                grid.get_cell_element((2, 1)).set_text(container_game.player_data[3] or "...")
 
     def update_lobby_new_game_container(self) -> None:
         def on_create_new_game_btn_click(cls, x, y):
-            cls.animation_handler.add_animation(
-                AnimationFactory.create_sliding_screen_animation(390, 1000, "down", vel=40, remove_on_finish=True),
-                id_="#CREATE_NEW_GAME"
-            )
-            cls.create_new_game_button.update(cls.event_handler)
-            cls.create_new_game_button.update(cls.event_handler)
-
-            game_name = cls.lobby_new_game_container.get_element("#GAME_NAME").get_text()
-            max_points = int(cls.lobby_new_game_container.get_element("#GAME_POINTS").get_text())
-            teams = (
-                cls.lobby_new_game_container.get_element("#TEAM_GRID").get_cell_element((0, 0)).get_text(),
-                cls.lobby_new_game_container.get_element("#TEAM_GRID").get_cell_element((0, 1)).get_text()
-            )
-
-            cls.data = cls.network.send(Commands.new(Commands.CREATE_GAME, GameData(game_name, max_points, teams)))
-            cls.data = cls.network.send(Commands.new(Commands.ENTER_GAME, game_name, 0))
+            cls.create_new_game()
 
         self.lobby_new_game_container.reset()
         self.lobby_new_game_container.add_element(
@@ -679,7 +687,7 @@ class Client:
                 (0, 0),
                 (200, 30),
                 self.assets.font24,
-                hint="Game_" + str(len(self.data["games"])),
+                hint="Game " + str(len(self.data["games"])),
                 color=Color(100, 100, 100, 100),
                 font_color=Colors.white,
                 bold=True,
@@ -725,7 +733,7 @@ class Client:
                     (0, 0),
                     (150, 50),
                     self.assets.font24,
-                    hint="Team Blue",
+                    hint="Team 1",
                     font_color=Color(0, 0, 200),
                     bold=True,
                     border_radius=0,
@@ -740,7 +748,7 @@ class Client:
                     (0, 0),
                     (150, 50),
                     self.assets.font24,
-                    hint="Team Red",
+                    hint="Team 2",
                     font_color=Color(200, 0, 0),
                     bold=True,
                     border_radius=0,
@@ -2023,6 +2031,40 @@ class Client:
             self.inventory[card].move_back()
             self.timed_actions[0]["MOVE_BACK_CARD"] = [False, self.timed_actions_durations["MOVE_BACK_CARD"],
                                                        0, card, copy_card]
+
+    def create_new_game(self) -> None:
+        if self.is_game_admin() or self.is_in_game:
+            return
+
+        self.animation_handler.add_animation(
+            AnimationFactory.create_sliding_screen_animation(390, 1000, "down", vel=40, remove_on_finish=True),
+            id_="#CREATE_NEW_GAME"
+        )
+        self.create_new_game_button.update(self.event_handler)
+        self.create_new_game_button.update(self.event_handler)
+
+        game_name = self.lobby_new_game_container.get_element("#GAME_NAME").get_text()
+        max_points = int(self.lobby_new_game_container.get_element("#GAME_POINTS").get_text())
+        teams = (
+            self.lobby_new_game_container.get_element("#TEAM_GRID").get_cell_element((0, 0)).get_text(),
+            self.lobby_new_game_container.get_element("#TEAM_GRID").get_cell_element((0, 1)).get_text()
+        )
+
+        self.data = self.network.send(Commands.new(Commands.CREATE_GAME, GameData(game_name, max_points, teams)))
+        self.data = self.network.send(Commands.new(Commands.ENTER_GAME, game_name))
+
+    def on_lobby_container_click(self, container: Container) -> None:
+        if self.is_game_admin() or self.is_in_game:
+            return
+
+        game_name = container.info["game_name"]
+        game = self.data["games"][game_name]
+        if not game.is_full():
+            self.is_in_game = True
+            self.data = self.network.send(Commands.new(Commands.ENTER_GAME, game_name))
+
+    def is_game_admin(self) -> bool:
+        return self.__client_id in self.data["admins"].values()
 
     def get_cards(self) -> Hand:
         return self.game.cards[self.__player]

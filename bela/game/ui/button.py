@@ -77,6 +77,10 @@ class Button(UIObject):
         self.click_pass_self = False
         self.hold_pass_self = False
 
+        self.hover_args = ()
+        self.click_args = ()
+        self.hold_args = ()
+
         self.is_hovering = False
         self.is_clicked = False
         self.is_held = False
@@ -158,25 +162,25 @@ class Button(UIObject):
                 self.is_clicked = True
                 if callable(self.on_click_listener):
                     if self.click_pass_self:
-                        self.on_click_listener(self.click_class, *pos, self)
+                        self.on_click_listener(self.click_class, *pos, self, *self.click_args)
                     else:
-                        self.on_click_listener(self.click_class, *pos)
+                        self.on_click_listener(self.click_class, *pos, *self.click_args)
             elif event_handler.held["left"]:
                 self.on_hold(*pos)
                 self.is_held = True
                 if callable(self.on_hold_listener):
                     if self.hold_pass_self:
-                        self.on_hold_listener(self.hold_class, *pos, self)
+                        self.on_hold_listener(self.hold_class, *pos, self, *self.hold_args)
                     else:
-                        self.on_hold_listener(self.hold_class, *pos)
+                        self.on_hold_listener(self.hold_class, *pos, *self.hold_args)
 
             self.on_hover(*pos)
             self.is_hovering = True
             if callable(self.on_hover_listener):
                 if self.hover_pass_self:
-                    self.on_hover_listener(self.hover_class, *pos, self)
+                    self.on_hover_listener(self.hover_class, *pos, self, *self.hover_args)
                 else:
-                    self.on_hover_listener(self.hover_class, *pos)
+                    self.on_hover_listener(self.hover_class, *pos, *self.hover_args)
         else:
             self.was_held = False
 
@@ -223,22 +227,25 @@ class Button(UIObject):
 
     # Getters and Setters
 
-    def set_on_hover_listener(self, listener: Callable, cls, pass_self: bool = False) -> Button:
+    def set_on_hover_listener(self, listener: Callable, cls, pass_self: bool = False, args=()) -> Button:
         self.on_hover_listener = listener
         self.hover_class = cls
         self.hover_pass_self = pass_self
+        self.hover_args = args
         return self
 
-    def set_on_click_listener(self, listener: Callable, cls, pass_self: bool = False) -> Button:
+    def set_on_click_listener(self, listener: Callable, cls, pass_self: bool = False, args=()) -> Button:
         self.on_click_listener = listener
         self.click_class = cls
         self.click_pass_self = pass_self
+        self.click_args = args
         return self
 
-    def set_on_hold_listener(self, listener: Callable, cls, pass_self: bool = False) -> Button:
+    def set_on_hold_listener(self, listener: Callable, cls, pass_self: bool = False, args=()) -> Button:
         self.on_hold_listener = listener
         self.hold_class = cls
         self.hold_pass_self = pass_self
+        self.hold_args = args
         return self
 
     def move(self, x: int = None, y: int = None, cx: bool = True, cy: bool = True) -> None:

@@ -47,11 +47,14 @@ class Server:
             start_new_thread(self.client, (connection, address))
 
     def client(self, connection, address):
-        connection.send(pickle.dumps(address))
+        client_id = len(self.clients) - 1
 
-        nickname = f"Player {len(self.clients)-1}"
+        connection.send(pickle.dumps(client_id))
+        nickname = f"Player {client_id}"
 
-        while True:
+        entered_game = None
+        joined_game = False
+        while not joined_game:
             try:
                 data = pickle.loads(connection.recv(self.buffer))
 
@@ -63,7 +66,7 @@ class Server:
                         response["error"] = f"Igra {game_data.name} već postoji"
                     else:
                         self.games[game_data.name] = Bela(game_data.max_points, game_data.team_names)
-                        self.admins[game_data.name] = address
+                        self.admins[game_data.name] = client_id
 
                 elif Commands.equals(data, Commands.REMOVE_GAME):
                     idx = data.data[0]
@@ -79,17 +82,23 @@ class Server:
                         self.admins.pop(game_name)
 
                 elif Commands.equals(data, Commands.ENTER_GAME):
-                    game_name, team = data.data
+                    game_name = data.data[0]
 
-                    for name, game in self.games.items():
-                        if name == game_name:
-                            if not game.add_player(nickname, team):
-                                response["error"] = f"Igra {game_name} je već popunjena"
+                    g = self.games[game_name]
+                    entered_game = g
+                    if not g.add_player(nickname, 0):
+                        if not g.add_player(nickname, 1):
+                            response["error"] = f"Igra {game_name} je već popunjena"
+                            entered_game = None
 
                 elif Commands.equals(data, Commands.CHANGE_NICKNAME):
                     nickname = data.data[0]
 
                 connection.sendall(pickle.dumps(response))
+
+                if entered_game and entered_game.is_full():
+                    continue
+                    joined_game = True
 
             except (socket.error, EOFError, ):
                 Log.i("SERVER", f"Client {address} disconnected...")

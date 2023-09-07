@@ -62,7 +62,7 @@ class Client:
         self.clock = pygame.time.Clock()
         self.__fps = 60
 
-        self.data: dict[str, Any] = {"games": {}, "admins": {}, "error": None}
+        self.data: dict[str, Any] = {"games": {}, "admins": {}, "error": None, "nickname": ""}
 
         self.__player = 0
         self.__client_id = 0
@@ -96,6 +96,7 @@ class Client:
         self.zvanja_timer_created = False
         self.shown_zvanja_points = False
         self.calling_bela = False
+        self.started_new_game = False
         self.bela_just_called = False
 
         self.switched_cards = []
@@ -109,8 +110,6 @@ class Client:
         self.ended_game = False
         self.end_game = False
         self.end_match = False
-
-        self.is_in_game = False
 
         self.score_y_offset = 15
 
@@ -479,6 +478,9 @@ class Client:
 
         if self.play_btn.is_clicked:
             self.game_state = ClientGameStates.LOBBY
+        if "start_game" in self.data or "game" in self.data:
+            self.game_state = ClientGameStates.GAME
+            self.__player = self.game.player_data.index(self.nickname)
         if (
             self.animation_handler.has("#MATCH_OVER_SCREEN_FALL") and
             self.animation_handler.get_animation("#MATCH_OVER_SCREEN_FALL").is_finished()
@@ -775,7 +777,7 @@ class Client:
                         (0, 0),
                         (200, 25),
                         self.assets.font24,
-                        text=self.nickname_input_field.get_text(),
+                        text=self.nickname,
                         font_color=Color(230, 230, 230),
                         bold=True,
                         fit_size_to_text=False
@@ -2033,7 +2035,7 @@ class Client:
                                                        0, card, copy_card]
 
     def create_new_game(self) -> None:
-        if self.is_game_admin() or self.is_in_game:
+        if self.is_game_admin() or self.is_in_game():
             return
 
         self.animation_handler.add_animation(
@@ -2054,17 +2056,21 @@ class Client:
         self.data = self.network.send(Commands.new(Commands.ENTER_GAME, game_name))
 
     def on_lobby_container_click(self, container: Container) -> None:
-        if self.is_game_admin() or self.is_in_game:
+        if self.is_game_admin() or self.is_in_game():
             return
 
         game_name = container.info["game_name"]
+        if game_name not in self.data["games"]:
+            return
         game = self.data["games"][game_name]
         if not game.is_full():
-            self.is_in_game = True
             self.data = self.network.send(Commands.new(Commands.ENTER_GAME, game_name))
 
     def is_game_admin(self) -> bool:
         return self.__client_id in self.data["admins"].values()
+
+    def is_in_game(self) -> bool:
+        return any(self.nickname in g.player_data for g in self.data["games"].values())
 
     def get_cards(self) -> Hand:
         return self.game.cards[self.__player]
@@ -2074,6 +2080,10 @@ class Client:
 
     def on_turn(self):
         return self.__player == self.game.player_turn
+
+    @property
+    def nickname(self) -> str:
+        return self.data["nickname"]
 
     @property
     def game(self) -> Any:

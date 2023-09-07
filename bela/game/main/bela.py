@@ -253,6 +253,7 @@ class Bela:
 
     def calculate_zvanja(self) -> None:
         # TODO: u ovoj funkciji sigurno nes ne valja jer moj mozak premali za ovakvu kompliciranost pa popravi to
+        # TODO: mslm da ne gleda prednost kod zvanja ako i partner ima zvanje
         zvanja_values = [
             [self.get_zvanje_value(zvanje) for zvanje in self.zvanja[i]]
             for i in range(4)

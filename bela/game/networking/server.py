@@ -52,13 +52,16 @@ class Server:
         connection.send(pickle.dumps(client_id))
         nickname = f"Player {client_id}"
 
+        game_name = None
+        player_id = 0
+
         entered_game = None
         joined_game = False
         while not joined_game:
             try:
                 data = pickle.loads(connection.recv(self.buffer))
 
-                response = {"games": self.games, "admins": self.admins, "error": None}
+                response = {"games": self.games, "admins": self.admins, "error": None, "nickname": nickname}
 
                 if Commands.equals(data, Commands.CREATE_GAME):
                     game_data = data.data[0]
@@ -94,11 +97,14 @@ class Server:
                 elif Commands.equals(data, Commands.CHANGE_NICKNAME):
                     nickname = data.data[0]
 
-                connection.sendall(pickle.dumps(response))
-
                 if entered_game and entered_game.is_full():
-                    continue
                     joined_game = True
+                    response["start_game"] = True
+                    response["game"] = self.games[game_name]
+                    response["data"] = {}
+                    player_id = self.games[game_name].player_data.index(nickname)
+
+                connection.sendall(pickle.dumps(response))
 
             except (socket.error, EOFError, ):
                 Log.i("SERVER", f"Client {address} disconnected...")
@@ -106,20 +112,18 @@ class Server:
                 self.clients.pop(self.clients.index(address))
                 break
 
-        return  # TODO: remove
-
         while True:
 
             try:
                 data = pickle.loads(connection.recv(self.buffer))
 
-                if game_id not in self.games:
+                if game_name not in self.games:
                     break
 
-                game = self.games[game_id]
+                game = self.games[game_name]
                 game.set_nickname(player_id, nickname)
 
-                response = {"game": None, "data": {}}
+                response = {"game": None, "games": self.games, "admins": self.admins, "error": None, "nickname": nickname, "data": {}}
 
                 # Check commands
 
@@ -172,16 +176,16 @@ class Server:
                 if Commands.equals(data, Commands.END_GAME):
                     game.end_game(player_id)
 
-                self.games[game_id] = game
+                self.games[game_name] = game
 
                 response["game"] = game
 
                 connection.sendall(pickle.dumps(response))
 
             except (socket.error, EOFError, ):
-                Log.i("SERVER", f"Player {player_id} from game {game_id} disconnected.")
-                if game_id in self.games:
-                    self.games.pop(game_id)
+                Log.i("SERVER", f"Player {player_id} from game {game_name} disconnected.")
+                if game_name in self.games:
+                    self.games.pop(game_name)
                 break
 
         connection.close()

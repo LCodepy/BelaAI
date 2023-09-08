@@ -42,6 +42,7 @@ class Container(UIObject):
         self.active = active
 
         self.surface = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
+        self.surface.set_alpha(self.color.alpha)
 
         self.button = Button(self.display, position, size, None, center_x=center_x,
                              center_y=center_y, padding=padding, color=Color(0, 0, 0, 0))

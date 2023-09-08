@@ -61,6 +61,37 @@ class AnimationHandler:
         return id_ in self.animations
 
 
+class SimpleAnimation(Animation):
+
+    def __init__(self, start_value: float, end_value: float, value_per_tick: float, remove_on_finish: bool = False) -> None:
+        super().__init__(remove_on_finish)
+        self.start_value = start_value
+        self.end_value = end_value
+        self.value_per_tick = value_per_tick
+        self.remove_on_finish = remove_on_finish
+
+    def update(self) -> None:
+        self.just_finished = False
+
+        if self.finished:
+            return
+
+        if self.value_per_tick < 0 and self.start_value <= self.end_value:
+            self.just_finished = True
+            self.finished = True
+            return
+
+        if self.value_per_tick > 0 and self.start_value >= self.end_value:
+            self.just_finished = True
+            self.finished = True
+            return
+
+        self.start_value += self.value_per_tick
+
+    def get_current_data(self) -> Any:
+        return self.start_value
+
+
 class TextShootDownAnimation(Animation):
 
     def __init__(self, label1: Label, label2: Label, stop: int, y_vel: float, extra_labels: list[Label],
@@ -185,6 +216,10 @@ class SlidingScreenAnimation(Animation):
 class AnimationFactory:
 
     @staticmethod
+    def create_simple_animation(start: float, end: float, value_per_tick: float, remove_on_finish: bool = False) -> SimpleAnimation:
+        return SimpleAnimation(start, end, value_per_tick, remove_on_finish=remove_on_finish)
+
+    @staticmethod
     def create_text_shoot_down_animation(label1: Label, label2: Label, stop: int, y_vel: float = 24,
                                          extra_labels: list[Label] = None, remove_on_finish: bool = False) -> Animation:
         return TextShootDownAnimation(label1, label2, stop, y_vel, extra_labels, remove_on_finish=remove_on_finish)
@@ -199,6 +234,5 @@ class AnimationFactory:
     def create_sliding_screen_animation(start: int, stop: int, direction: str, vel: float = 20,
                                         remove_on_finish: bool = False) -> Animation:
         return SlidingScreenAnimation(start, stop, direction, vel, remove_on_finish=remove_on_finish)
-
 
 

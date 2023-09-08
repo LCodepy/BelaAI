@@ -113,6 +113,8 @@ class Client:
 
         self.score_y_offset = 15
 
+        self.lobby_fading_surface = pygame.Surface(config.WINDOW_SIZE, pygame.SRCALPHA)
+
         self.last_frame_cards_on_table = []
 
         self.timed_actions = [{}, {}]
@@ -163,8 +165,12 @@ class Client:
                 # TODO: error msg
                 return
             cls.animation_handler.add_animation(
-                AnimationFactory.create_sliding_screen_animation(1000, 390, "up", vel=40),
+                AnimationFactory.create_sliding_screen_animation(1000, 320, "up", vel=40),
                 id_="#CREATE_NEW_GAME"
+            )
+            cls.animation_handler.add_animation(
+                AnimationFactory.create_simple_animation(0, 200, 4),
+                id_="#CREATE_NEW_GAME_FADE_INOUT"
             )
             cls.update_lobby_new_game_container()
 
@@ -256,13 +262,15 @@ class Client:
         self.create_new_game_button = Button(
             self.canvas,
             (self.canvas.get_width() // 2, 550),
-            (400, 35),
+            (300, 40),
             self.assets.font24,
-            text="NOVA IGRA",
-            color=Color(180, 150, 0),
+            icon="+",
+            color=Color(100, 100, 100, 10),
             font_color=Colors.white,
             bold=True,
-            border_radius=10
+            border_color=Color(150, 150, 150),
+            border_radius=10,
+            border_width=1
         ).set_on_click_listener(on_create_new_game_btn_click, self)
 
         self.nickname_input_field = InputField(
@@ -292,9 +300,11 @@ class Client:
         self.lobby_new_game_container = Container(
             self.canvas,
             (self.canvas.get_width() // 2, self.canvas.get_height() + 250),
-            (400, 500),
-            Color(160, 130, 0),
-            border_radius=30
+            (380, 500),
+            Color(*self.background_color),
+            border_color=Color(200, 200, 200),
+            border_radius=5,
+            border_width=1
         )
 
         self.sort_cards_button = Button(
@@ -502,10 +512,19 @@ class Client:
                 y=self.animation_handler.get_animation("#CREATE_NEW_GAME").get_current_data()
             )
             self.lobby_new_game_container.update(self.event_handler)
-            if self.event_handler.releases["left"] and not self.lobby_new_game_container.button.is_clicked:
+
+            if (
+                self.event_handler.releases["left"] and
+                not self.lobby_new_game_container.button.is_clicked and
+                self.animation_handler.get_animation("#CREATE_NEW_GAME").is_finished()
+            ):
                 self.animation_handler.add_animation(
-                    AnimationFactory.create_sliding_screen_animation(390, 1000, "down", vel=40, remove_on_finish=True),
+                    AnimationFactory.create_sliding_screen_animation(320, 1000, "down", vel=40, remove_on_finish=True),
                     id_="#CREATE_NEW_GAME"
+                )
+                self.animation_handler.add_animation(
+                    AnimationFactory.create_simple_animation(200, 0, -4),
+                    id_="#CREATE_NEW_GAME_FADE_INOUT"
                 )
         else:
             self.create_new_game_button.update(self.event_handler)
@@ -640,7 +659,7 @@ class Client:
                             (0, 0),
                             (10, 10),
                             self.assets.font24,
-                            color=Color(200, 200, 200),
+                            border_color=Color(200, 200, 200),
                             img="x",
                             hover_effects=False,
                             id_=i
@@ -668,12 +687,13 @@ class Client:
                 (0, 0),
                 (240, 50),
                 self.assets.font24,
-                text="NAPRAVI NOVU IGRU",
+                text="CREATE",
                 font_color=Colors.white,
                 bold=True,
-                color=Color(200, 100, 0),
+                color=Color(100, 100, 100, 30),
                 border_radius=10,
-                border_color=Color(60, 10, 0)
+                border_color=Color(200, 200, 200),
+                border_width=1
             ).set_on_click_listener(on_create_new_game_btn_click, self),
             id_="#CREATE",
             pad_y=20
@@ -736,7 +756,7 @@ class Client:
                     (150, 50),
                     self.assets.font24,
                     hint="Team 1",
-                    font_color=Color(0, 0, 200),
+                    font_color=Color(0, 0, 230),
                     bold=True,
                     border_radius=0,
                     max_length=9,
@@ -1134,6 +1154,13 @@ class Client:
 
         self.create_new_game_button.render()
         self.nickname_input_field.render()
+
+        if self.animation_handler.has("#CREATE_NEW_GAME_FADE_INOUT"):
+            self.lobby_fading_surface.fill(Colors.black.c)
+            self.lobby_fading_surface.set_alpha(
+                self.animation_handler.get_animation("#CREATE_NEW_GAME_FADE_INOUT").get_current_data()
+            )
+            self.canvas.blit(self.lobby_fading_surface, (0, 0))
 
         if self.animation_handler.has("#CREATE_NEW_GAME"):
             self.lobby_new_game_container.render()
@@ -2039,8 +2066,12 @@ class Client:
             return
 
         self.animation_handler.add_animation(
-            AnimationFactory.create_sliding_screen_animation(390, 1000, "down", vel=40, remove_on_finish=True),
+            AnimationFactory.create_sliding_screen_animation(320, 1000, "down", vel=40, remove_on_finish=True),
             id_="#CREATE_NEW_GAME"
+        )
+        self.animation_handler.add_animation(
+            AnimationFactory.create_simple_animation(200, 0, -4),
+            id_="#CREATE_NEW_GAME_FADE_INOUT"
         )
         self.create_new_game_button.update(self.event_handler)
         self.create_new_game_button.update(self.event_handler)

@@ -15,7 +15,7 @@ class Button(UIObject):
 
     def __init__(self, display: pygame.Surface, position: Tuple[int, int], size: Tuple[int, int], font,
                  center_x: bool = True, center_y: bool = True, text: str = None, img: Union[pygame.Surface, str] = None,
-                 color: Optional[Color] = Colors.dark_red, font_color: Color = Colors.black, bold: bool = False,
+                 color: Optional[Color] = Colors.dark_red, icon: str = None, font_color: Color = Colors.black, bold: bool = False,
                  text_orientation: str = "center", padding: int = 0, border_color: Color = None, border_radius: int = 0,
                  border_width: int = 2, hover_effects: bool = True, id_: int = None) -> None:
 
@@ -27,6 +27,7 @@ class Button(UIObject):
         self.text = text
         self.font = font
         self.img = img
+        self.icon = icon
         self.color = color
         self.font_color = font_color
         self.bold = bold
@@ -92,6 +93,8 @@ class Button(UIObject):
         self.disable_time = 0.1
         self.init = False
         self.init_time = 0
+
+        self.icon_padding = 5
 
     def update_vars(self) -> None:
         self.label = None
@@ -194,7 +197,7 @@ class Button(UIObject):
             self.label.render()
 
     def render_non_image(self) -> None:
-        if self.color is None:
+        if self.color is None and self.icon is None:
             return
 
         surf = pygame.Surface(self.rect.size, pygame.SRCALPHA)
@@ -206,13 +209,25 @@ class Button(UIObject):
                              width=self.border_width, border_radius=self.border_radius)
         self.display.blit(surf, (self.rect.x, self.rect.y))
 
+        if self.icon == "+":
+            w = min(self.rect.width - self.icon_padding * 2, self.rect.height - self.icon_padding * 2)
+            pygame.draw.line(self.display, self.border_color.c, (self.rect.centerx, self.rect.centery - w // 2 + self.icon_padding),
+                             (self.rect.centerx, self.rect.centery + w // 2 - self.icon_padding))
+            pygame.draw.line(self.display, self.border_color.c, (self.rect.centerx - w // 2 + self.icon_padding, self.rect.centery),
+                             (self.rect.centerx + w // 2 - self.icon_padding, self.rect.centery))
+        elif self.icon == "x":
+            pygame.draw.line(self.display, self.border_color.c, self.rect.topleft, self.rect.bottomright,
+                             self.border_width)
+            pygame.draw.line(self.display, self.border_color.c, self.rect.topright, self.rect.bottomleft,
+                             self.border_width)
+
     def render_image(self) -> None:
         if isinstance(self.img, str):
             if self.img == "x":
-                pygame.draw.line(self.display, self.color.c, self.rect.topleft, self.rect.bottomright, self.border_width)
-                pygame.draw.line(self.display, self.color.c, self.rect.topright, self.rect.bottomleft, self.border_width)
+                pygame.draw.line(self.display, self.border_color.c, self.rect.topleft, self.rect.bottomright, self.border_width)
+                pygame.draw.line(self.display, self.border_color.c, self.rect.topright, self.rect.bottomleft, self.border_width)
             if self.img == "o":
-                pygame.draw.circle(self.display, self.color.c, self.rect.center, self.rect.w // 2)
+                pygame.draw.circle(self.display, self.border_color.c, self.rect.center, self.rect.w // 2)
         else:
             self.display.blit(self.img, (self.rect.x, self.rect.y))
 

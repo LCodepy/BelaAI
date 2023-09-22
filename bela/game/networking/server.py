@@ -50,7 +50,7 @@ class Server:
         client_id = len(self.clients) - 1
 
         connection.send(pickle.dumps(client_id))
-        nickname = f"Player {client_id}"
+        nickname = f"Player {client_id+1}"
 
         game_name = None
         player_id = 0
@@ -97,6 +97,13 @@ class Server:
                 elif Commands.equals(data, Commands.CHANGE_NICKNAME):
                     nickname = data.data[0]
 
+                elif Commands.equals(data, Commands.DISCONNECT):
+                    Log.i("SERVER", f"Client {address} disconnected...")
+                    connection.sendall(pickle.dumps("OK"))
+                    connection.close()
+                    self.clients.pop(self.clients.index(address))
+                    return
+
                 if entered_game and entered_game.is_full():
                     joined_game = True
                     response["start_game"] = True
@@ -107,7 +114,7 @@ class Server:
                 connection.sendall(pickle.dumps(response))
 
             except (socket.error, EOFError, ):
-                Log.i("SERVER", f"Client {address} disconnected...")
+                Log.e("SERVER", f"Client {address} disconnected...")
                 connection.close()
                 self.clients.pop(self.clients.index(address))
                 break

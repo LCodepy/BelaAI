@@ -39,11 +39,13 @@ class ServerControllerSS:
 
                 if cmnds and cmnds[0].lower() == "cc":
                     try:
-                        game_idx = 0
+                        game_name = ""
                         player = 0
                         idx = 0
                         if "-g" in cmnds:
-                            game_idx = int(cmnds[cmnds.index("-g")+1])
+                            game_name = cmnds[cmnds.index("-g")+1]
+                            if game_name not in self.server.games:
+                                raise ValueError(f"Game {game_name} doesn't exist.")
                         if "-p" in cmnds:
                             player = int(cmnds[cmnds.index("-p")+1])
                         if "-c" in cmnds:
@@ -52,40 +54,44 @@ class ServerControllerSS:
                             c = cmnds[cmnds.index("-n")+1]
                             c = c.split("-")
                             c = (c[0], c[1]) if c[1] in ("karo", "herc", "tref", "pik") else (c[1], c[0])
-                            idx = self.server.games[game_idx].cards[player].sve.index(c)
+                            idx = self.server.games[game_name].cards[player].sve.index(c)
 
                         card = cmnds[-1]
                         card = card.split("-")
                         card = (card[0], card[1]) if card[1] in ("karo", "herc", "tref", "pik") else (card[1], card[0])
 
-                        self.server.games[game_idx].cards[player].sve[idx] = card
+                        self.server.games[game_name].cards[player].sve[idx] = card
                     except Exception as e:
                         response = str(e)
 
                 if cmnds and cmnds[0].lower() == "auto":
                     try:
                         val = True
-                        game_idx = 0
+                        game_name = ""
                         if "-g" in cmnds:
-                            game_idx = int(cmnds[cmnds.index("-g")+1])
+                            game_name = cmnds[cmnds.index("-g")+1]
+                            if game_name not in self.server.games:
+                                raise ValueError(f"Game {game_name} doesn't exist.")
                         if "-s" in cmnds:
                             val = False
                         if "-all" in cmnds:
-                            self.server.games[game_idx].auto_play = [val] * 4
+                            self.server.games[game_name].auto_play = [val] * 4
                         for cmnd in cmnds[1:]:
                             if "-" in cmnd:
                                 break
-                            self.server.games[game_idx].auto_play[int(cmnd)] = val
+                            self.server.games[game_name].auto_play[int(cmnd)] = val
                     except Exception as e:
                         response = str(e)
 
                 if cmnds and cmnds[0].lower() == "belot":
                     try:
-                        game_idx = 0
+                        game_name = ""
                         player = 0
                         color = "herc"
                         if "-g" in cmnds:
-                            game_idx = int(cmnds[cmnds.index("-g")+1])
+                            game_name = cmnds[cmnds.index("-g")+1]
+                            if game_name not in self.server.games:
+                                raise ValueError(f"Game {game_name} doesn't exist.")
                         if "-p" in cmnds:
                             player = int(cmnds[cmnds.index("-p")+1])
                         if "-c" in cmnds:
@@ -96,19 +102,21 @@ class ServerControllerSS:
 
                         cards = [(value, color) for value in ["7", "8", "9", "cener", "unter", "baba", "kralj", "kec"]]
                         for i, card in enumerate(cards):
-                            self.server.games[game_idx].cards[player].sve[i] = card
+                            self.server.games[game_name].cards[player].sve[i] = card
                     except Exception as e:
                         response = str(e)
 
                 if cmnds and cmnds[0].lower() == "p+":
                     try:
-                        game_idx = 0
+                        game_name = ""
                         idx = int(cmnds[1])
                         points = int(cmnds[2])
                         if "-g" in cmnds:
-                            game_idx = int(cmnds[cmnds.index("-g") + 1])
+                            game_name = cmnds[cmnds.index("-g")+1]
+                            if game_name not in self.server.games:
+                                raise ValueError(f"Game {game_name} doesn't exist.")
 
-                        self.server.games[game_idx].games.append([points * (1 - idx), points * idx])
+                        self.server.games[game_name].games.append([points * (1 - idx), points * idx])
                     except Exception as e:
                         response = str(e)
 

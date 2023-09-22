@@ -174,6 +174,12 @@ class Client:
             )
             cls.update_lobby_new_game_container()
 
+        def on_lobby_back_btn_click(cls, x, y):
+            cls.play_btn.reinit()
+            cls.play_btn.update(cls.event_handler)
+            cls.game_state = ClientGameStates.MAIN_MENU
+            cls.disconnect()
+
         def on_sort_cards_btn_click(cls, x, y):
             cls.data = cls.network.send(Commands.SORT_CARDS)
             if cls.game.get_current_game_state() == GameState.ZVANJE_ADUTA and not cls.game.dalje[cls.__player]:
@@ -278,7 +284,7 @@ class Client:
             (self.canvas.get_width() // 2, 40),
             (250, 40),
             self.assets.font24,
-            hint=f"Player {self.__client_id}",
+            hint=f"Player {self.__client_id+1}",
             color=Color(100, 100, 100, 30),
             font_color=Colors.white,
             bold=True,
@@ -289,6 +295,14 @@ class Client:
             max_length=8,
             text_underline=True
         )
+
+        self.lobby_back_arrow = Button(
+            self.canvas,
+            (45, 40),
+            (32, 23),
+            self.assets.font18,
+            img=self.assets.arrow_back
+        ).set_on_click_listener(on_lobby_back_btn_click, self)
 
         self.lobby_game_containers = [
             Container(
@@ -460,7 +474,10 @@ class Client:
         self.network.connect()
         self.network.update_connection()
         self.__client_id = self.network.client_id
-        self.nickname_input_field.hint = f"Player {self.__client_id}"
+        self.nickname_input_field.hint = f"Player {self.__client_id+1}"
+
+    def disconnect(self) -> None:
+        self.network.send(Commands.DISCONNECT) # TODO: Finish
 
     def update(self):
         if self.game_state not in (ClientGameStates.MAIN_MENU, ClientGameStates.UNDEFINED):
@@ -529,6 +546,7 @@ class Client:
         else:
             self.create_new_game_button.update(self.event_handler)
             self.nickname_input_field.update(self.event_handler)
+            self.lobby_back_arrow.update(self.event_handler)
 
             for container in self.lobby_game_containers:
                 if container.active:
@@ -820,7 +838,7 @@ class Client:
                     (0, 0),
                     (200, 50),
                     self.assets.font24,
-                    text="IGRAČ 2",
+                    text="Player 2",
                     font_color=Color(200, 200, 200),
                     bold=True
                 ), 1, 1
@@ -830,7 +848,7 @@ class Client:
                     (0, 0),
                     (200, 50),
                     self.assets.font24,
-                    text="IGRAČ 3",
+                    text="Player 3",
                     font_color=Color(200, 200, 200),
                     bold=True
                 ), 2, 0
@@ -840,7 +858,7 @@ class Client:
                     (0, 0),
                     (200, 50),
                     self.assets.font24,
-                    text="IGRAČ 4",
+                    text="Player 4",
                     font_color=Color(200, 200, 200),
                     bold=True
                 ), 2, 1
@@ -1154,6 +1172,7 @@ class Client:
 
         self.create_new_game_button.render()
         self.nickname_input_field.render()
+        self.lobby_back_arrow.render()
 
         if self.animation_handler.has("#CREATE_NEW_GAME_FADE_INOUT"):
             self.lobby_fading_surface.fill(Colors.black.c)

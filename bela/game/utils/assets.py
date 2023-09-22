@@ -36,6 +36,8 @@ class Assets(metaclass=Singleton):
 
         self.table = pygame.image.load(self.PATH_IMAGES + "stol.png")
 
+        self.arrow_back = pygame.image.load(self.PATH_IMAGES + "arrow_back.png")
+
     def load_sprite_sheet(self, filename: str, rows: int, cols: int, size: float = 1) -> list[list[pygame.Surface]]:
         sheet = []
 

@@ -137,9 +137,7 @@ class Button(UIObject):
         if not self.init:
             self.init = True
             self.init_time = time.time()
-
-        if time.time() - self.init_time <= self.disable_time:
-            return
+            self.is_hovering = False
 
         if self.color and self.hover_effects:
             if self.last_hovered and not self.is_hovering:  # e.i. on_exit()
@@ -153,6 +151,9 @@ class Button(UIObject):
         self.is_clicked = False
         self.is_hovering = False
         self.is_held = False
+
+        if time.time() - self.init_time <= self.disable_time:
+            return
 
         pos = event_handler.get_pos()
 

@@ -7,7 +7,7 @@ from typing import Any
 import pygame
 
 from bela.game.main.bela import GameState, Hand, Card, GameData
-from bela.game.networking.commands import Commands
+from bela.game.networking.commands import Commands, Command
 from bela.game.ui.button import Button
 from bela.game.ui.container import Container
 from bela.game.ui.grid import Grid
@@ -33,7 +33,8 @@ class Client:
 
     def __init__(self):
 
-        self.network = Network(buffer=8180)
+        self.__network_buffer = 8180
+        self.network = Network(buffer=self.__network_buffer)
 
         self.win = pygame.display.set_mode(config.WINDOW_SIZE, pygame.SRCALPHA)
         pygame.display.set_caption(f"Bela")
@@ -68,6 +69,8 @@ class Client:
         self.__client_id = 0
 
         self.game_state: ClientGameStates = ClientGameStates.MAIN_MENU
+
+        self.connected = False
 
         self.background_color = (0, 0, 20)
 
@@ -181,7 +184,7 @@ class Client:
             cls.disconnect()
 
         def on_sort_cards_btn_click(cls, x, y):
-            cls.data = cls.network.send(Commands.SORT_CARDS)
+            cls.send_data(Commands.SORT_CARDS)
             if cls.game.get_current_game_state() == GameState.ZVANJE_ADUTA and not cls.game.dalje[cls.__player]:
                 cls.calculate_card_positions(cls.game.get_netalon(cls.get_player()))
             else:
@@ -189,18 +192,18 @@ class Client:
 
         def on_adut_btn_click(cls, x, y, btn):
             if cls.game.get_current_game_state() == GameState.ZVANJE_ADUTA:
-                cls.data = cls.network.send(Commands.new(Commands.CALL_ADUT, btn.text))
+                cls.send_data(Commands.new(Commands.CALL_ADUT, btn.text))
                 cls.calculate_card_positions(cls.get_cards().sve)
 
         def on_dalje_btn_click(cls, x, y):
             if cls.game.get_current_game_state() == GameState.ZVANJE_ADUTA:
-                cls.data = cls.network.send(Commands.DALJE)
+                cls.send_data(Commands.DALJE)
                 cls.calculate_card_positions(cls.get_cards().sve)
                 cls.adut_dalje = True
 
         def on_nema_zvanja_btn_click(cls, x, y):
             cls.zvanja_dalje = True
-            cls.data = cls.network.send(Commands.new(Commands.ZVANJE, []))
+            cls.send_data(Commands.new(Commands.ZVANJE, []))
             cls.recheck_zvanja()
 
         def on_ima_zvanja_btn_click(cls, x, y):
@@ -208,7 +211,7 @@ class Client:
             for i, v in enumerate(cls.selected_cards):
                 if v:
                     cards.append(cls.inventory[i].card)
-            cls.data = cls.network.send(Commands.new(Commands.ZVANJE, cards))
+            cls.send_data(Commands.new(Commands.ZVANJE, cards))
             if cls.game.zvanja[cls.__player]:
                 cls.called_zvanje = True
             else:
@@ -471,17 +474,25 @@ class Client:
         pygame.quit()
 
     def connect(self) -> None:
+        self.network = Network(buffer=self.__network_buffer)
         self.network.connect()
         self.network.update_connection()
         self.__client_id = self.network.client_id
         self.nickname_input_field.hint = f"Player {self.__client_id+1}"
+        self.connected = True
 
     def disconnect(self) -> None:
-        self.network.send(Commands.DISCONNECT) # TODO: Finish
+        data = self.network.send(Commands.DISCONNECT)
+        if data == "OK":
+            self.connected = False
+
+    def send_data(self, data: Command) -> None:
+        if self.connected:
+            self.data = self.network.send(data)
 
     def update(self):
         if self.game_state not in (ClientGameStates.MAIN_MENU, ClientGameStates.UNDEFINED):
-            self.data = self.network.send(Commands.GET)
+            self.send_data(Commands.GET)
 
         self.timer_handler.update()
 
@@ -552,11 +563,11 @@ class Client:
                 if container.active:
                     container.update(self.event_handler)
 
-        self.data = self.network.send(Commands.new(Commands.CHANGE_NICKNAME, self.nickname_input_field.get_text()))
+        self.send_data(Commands.new(Commands.CHANGE_NICKNAME, self.nickname_input_field.get_text()))
 
     def update_lobby_game_containers(self) -> None:
         def on_remove_game_btn_click(cls, x, y, btn):
-            cls.data = cls.network.send(Commands.new(Commands.REMOVE_GAME, btn.id_))
+            cls.send_data(Commands.new(Commands.REMOVE_GAME, btn.id_))
 
         def on_container_click(cls, x, y, container):
             cls.on_lobby_container_click(container)
@@ -1036,14 +1047,18 @@ class Client:
                 self.inventory[index].set_pos(self.event_handler.get_pos())
 
     def handle_card_playing(self) -> None:
-        data = self.network.send(Commands.new(Commands.PLAY_CARD, self.inventory[self.moving_card]))
+        if self.connected:
+            data = self.network.send(Commands.new(Commands.PLAY_CARD, self.inventory[self.moving_card]))
+        else:
+            return
+
         card_passed = data["data"]["passed"]
         self.data = data
         if card_passed:
             if self.calling_bela and None not in self.selected_cards_for_bela and \
                     self.inventory[self.moving_card].card in (("baba", self.game.get_adut()),
                                                               ("kralj", self.game.get_adut())):
-                self.data = self.network.send(Commands.CALLED_BELA)
+                self.send_data(Commands.CALLED_BELA)
             self.calling_bela = False
             self.selected_cards_for_bela = [None, None]
             self.inventory.pop(self.moving_card)
@@ -1075,7 +1090,7 @@ class Client:
                 c1 = self.game.get_card_index(self.__player, self.inventory[self.moving_card].card)
                 c2 = self.game.get_card_index(self.__player, self.inventory[i].card)
 
-                self.data = self.network.send(Commands.new(Commands.SWAP_CARDS, (c1, c2)))
+                self.send_data(Commands.new(Commands.SWAP_CARDS, (c1, c2)))
 
                 self.inventory[self.moving_card].card, self.inventory[i].card = \
                     self.inventory[i].card, self.inventory[self.moving_card].card
@@ -1129,7 +1144,7 @@ class Client:
                     self.cards_on_table = []
                     self.activated_turn_end = False
                     to_remove.append("TURN_ENDED")
-                    self.data = self.network.send(Commands.END_TURN)
+                    self.send_data(Commands.END_TURN)
 
         for rem in to_remove:
             self.timed_actions[0].pop(rem)
@@ -1704,12 +1719,12 @@ class Client:
                     self.lobby_game_containers[j].get_element("#CLOSE_BTN").id_ = j
 
     def end_current_game(self) -> None:
-        self.data = self.network.send(Commands.END_GAME)
+        self.send_data(Commands.END_GAME)
         self.end_game = False
         self.started_new_game = False
 
     def end_current_match(self) -> None:
-        self.data = self.network.send(Commands.END_MATCH)
+        self.send_data(Commands.END_MATCH)
         self.end_match = False
 
     def start_new_game(self) -> None:
@@ -1865,7 +1880,7 @@ class Client:
             self.cards_on_table_positions_p2.append(path)
 
     def finish_zvanja(self, _) -> None:
-        self.data = self.network.send(Commands.ZVANJE_GOTOVO)
+        self.send_data(Commands.ZVANJE_GOTOVO)
 
         if self.game.called_belot:
             self.timed_actions[1]["BELOT"] = [True, self.timed_actions_durations["BELOT"], time.time()]
@@ -2102,8 +2117,8 @@ class Client:
             self.lobby_new_game_container.get_element("#TEAM_GRID").get_cell_element((0, 1)).get_text()
         )
 
-        self.data = self.network.send(Commands.new(Commands.CREATE_GAME, GameData(game_name, max_points, teams)))
-        self.data = self.network.send(Commands.new(Commands.ENTER_GAME, game_name))
+        self.send_data(Commands.new(Commands.CREATE_GAME, GameData(game_name, max_points, teams)))
+        self.send_data(Commands.new(Commands.ENTER_GAME, game_name))
 
     def on_lobby_container_click(self, container: Container) -> None:
         if self.is_game_admin() or self.is_in_game():
@@ -2114,7 +2129,7 @@ class Client:
             return
         game = self.data["games"][game_name]
         if not game.is_full():
-            self.data = self.network.send(Commands.new(Commands.ENTER_GAME, game_name))
+            self.send_data(Commands.new(Commands.ENTER_GAME, game_name))
 
     def is_game_admin(self) -> bool:
         return self.__client_id in self.data["admins"].values()

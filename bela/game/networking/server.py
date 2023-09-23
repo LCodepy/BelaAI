@@ -47,7 +47,7 @@ class Server:
             start_new_thread(self.client, (connection, address))
 
     def client(self, connection, address):
-        client_id = len(self.clients) - 1
+        client_id = len(self.clients) - 1  # TODO: napravi da id nije broj neko string
 
         connection.send(pickle.dumps(client_id))
         nickname = f"Player {client_id+1}"
@@ -115,7 +115,6 @@ class Server:
 
             except (socket.error, EOFError, ):
                 Log.e("SERVER", f"Client {address} disconnected...")
-                connection.close()
                 self.clients.pop(self.clients.index(address))
                 break
 

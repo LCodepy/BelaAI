@@ -80,6 +80,8 @@ class Bela:
         self.start_time = time.time()
 
         self.player_data: list[Optional[str]] = [None] * 4
+        self.players: list[Optional[str]] = [None] * 4
+        self.players_ready: list[Optional[str]] = [None] * 4
 
         self.player_turn = 1
         self.diler = 0
@@ -299,6 +301,7 @@ class Bela:
     def swap_cards_for_player(self, id_: int, cards: Tuple) -> None:
         c1, c2 = cards
         self.cards[id_].sve[c1], self.cards[id_].sve[c2] = self.cards[id_].sve[c2], self.cards[id_].sve[c1]
+        self.cards[id_].netalon[c1-2], self.cards[id_].netalon[c2-2] = self.cards[id_].netalon[c2-2], self.cards[id_].netalon[c1-2]
 
     def sort_player_cards(self, id_: int) -> None:
         list_sorted = []
@@ -503,21 +506,28 @@ class Bela:
         if team == 0:
             if self.player_data[0] is None:
                 self.player_data[0] = nickname
+                self.players[0] = nickname
             elif self.player_data[2] is None:
                 self.player_data[2] = nickname
+                self.players[2] = nickname
             else:
                 return False
         elif team == 1:
             if self.player_data[1] is None:
                 self.player_data[1] = nickname
+                self.players[1] = nickname
             elif self.player_data[3] is None:
                 self.player_data[3] = nickname
+                self.players[3] = nickname
             else:
                 return False
         else:
             return False
 
         return True
+
+    def player_leave(self, id_: int) -> None:
+        self.players[id_] = None
 
     def player_has_bela(self, id_: int) -> bool:
         return ("kralj", self.adut) in self.cards[id_].sve and ("baba", self.adut) in self.cards[id_].sve
@@ -575,6 +585,9 @@ class Bela:
 
     def get_card_index(self, id_: int, card: Tuple[str, str]) -> int:
         return self.cards[id_].sve.index(card)
+
+    def get_card_netalon_index(self, id_: int, card: Tuple[str, str]) -> int:
+        return self.cards[id_].netalon.index(card)
 
     def set_nickname(self, id_: int, nickname: str) -> None:
         self.player_data[id_] = nickname

@@ -66,7 +66,7 @@ class Client:
         self.data: dict[str, Any] = {"games": {}, "admins": {}, "error": None, "nickname": ""}
 
         self.__player = 0
-        self.__client_id = 0
+        self.__client_id = ""
 
         self.game_state: ClientGameStates = ClientGameStates.MAIN_MENU
 
@@ -113,6 +113,7 @@ class Client:
         self.ended_game = False
         self.end_game = False
         self.end_match = False
+        self.game_started = False
 
         self.score_y_offset = 15
 
@@ -287,7 +288,7 @@ class Client:
             (self.canvas.get_width() // 2, 40),
             (250, 40),
             self.assets.font24,
-            hint=f"Player {self.__client_id+1}",
+            hint="",
             color=Color(100, 100, 100, 30),
             font_color=Colors.white,
             bold=True,
@@ -426,41 +427,18 @@ class Client:
             bold=True
         )
 
-        self.match_over_menu_title = Label(
-            self.match_over_menu_canvas,
-            (self.canvas.get_width() // 2, 200),
-            (500, 200),
-            self.assets.font64,
-            text="IGRA ZAVRŠENA",
-            font_color=Colors.white,
-            bold=True
-        )
-
         self.menu_return_button = Button(
             self.match_over_menu_canvas,
             (self.canvas.get_width() // 2, 375),
             (300, 50),
             self.assets.font32,
-            text="MAIN MENU",
+            text="RETURN TO LOBBY",
             font_color=Colors.white.darker(60),
             bold=True,
-            color=Color(150, 150, 150, 60),
+            color=Color(150, 150, 150),
             border_radius=10,
             border_color=Color(150, 150, 150)
         ).set_on_click_listener(on_menu_return_btn_click, self)
-
-        self.menu_play_again_button = Button(
-            self.match_over_menu_canvas,
-            (self.canvas.get_width() // 2, 450),
-            (300, 50),
-            self.assets.font32,
-            text="IGRAJ PONOVO",
-            font_color=Colors.white.darker(60),
-            bold=True,
-            color=Color(150, 150, 150, 60),
-            border_radius=10,
-            border_color=Color(150, 150, 150)
-        ).set_on_click_listener(on_play_again_btn_click, self)
 
         """-----------------------------------MAIN LOOP---------------------------------"""
         while True:
@@ -478,7 +456,7 @@ class Client:
         self.network.connect()
         self.network.update_connection()
         self.__client_id = self.network.client_id
-        self.nickname_input_field.hint = f"Player {self.__client_id+1}"
+        self.nickname_input_field.hint = self.network.recv_only()
         self.connected = True
 
     def disconnect(self) -> None:
@@ -508,25 +486,20 @@ class Client:
             self.update_lobby()
         elif self.game_state is ClientGameStates.MAIN_MENU:
             self.update_menu()
-        elif self.game_state is ClientGameStates.MATCH_OVER_MENU:
-            self.update_match_over_menu()
 
     def update_game_states(self) -> None:
-        #self.game_state = ClientGameStates.MATCH_OVER_MENU
-
         if self.play_btn.is_clicked:
             self.game_state = ClientGameStates.LOBBY
-        if "start_game" in self.data or "game" in self.data:
+        if "start_game" in self.data:
+            self.game_started = True
+        if "game" in self.data and self.game_started:
             self.game_state = ClientGameStates.GAME
             self.__player = self.game.player_data.index(self.nickname)
         if (
             self.animation_handler.has("#MATCH_OVER_SCREEN_FALL") and
             self.animation_handler.get_animation("#MATCH_OVER_SCREEN_FALL").is_finished()
         ):
-            self.animation_handler.remove_animation("#MATCH_OVER_SCREEN_FALL")
-            if "MATCH_OVER" in self.timed_actions[1]:
-                self.timed_actions[1].pop("MATCH_OVER")
-            self.game_state = ClientGameStates.MATCH_OVER_MENU
+            self.game_started = False
 
     def update_menu(self) -> None:
         self.play_btn.update(self.event_handler)
@@ -551,13 +524,16 @@ class Client:
                     id_="#CREATE_NEW_GAME"
                 )
                 self.animation_handler.add_animation(
-                    AnimationFactory.create_simple_animation(200, 0, -4),
+                    AnimationFactory.create_simple_animation(
+                        self.animation_handler.get_animation("#CREATE_NEW_GAME_FADE_INOUT").get_current_data(), 0, -4
+                    ),
                     id_="#CREATE_NEW_GAME_FADE_INOUT"
                 )
         else:
-            self.create_new_game_button.update(self.event_handler)
-            self.nickname_input_field.update(self.event_handler)
             self.lobby_back_arrow.update(self.event_handler)
+            self.create_new_game_button.update(self.event_handler)
+            if not self.is_in_game():
+                self.nickname_input_field.update(self.event_handler)
 
             for container in self.lobby_game_containers:
                 if container.active:
@@ -881,10 +857,6 @@ class Client:
             fit_y=True
         )
 
-    def update_match_over_menu(self) -> None:
-        self.menu_return_button.update(self.event_handler)
-        self.menu_play_again_button.update(self.event_handler)
-
     def update_game(self) -> None:
         if self.game.current_game_over and not self.activated_game_over:
             self.timed_actions[1]["GAME_OVER"] = [True, self.timed_actions_durations["GAME_OVER"], time.time()]
@@ -923,7 +895,7 @@ class Client:
         if self.game.get_current_game_state() is GameState.ZVANJA and len(self.inventory) in (0, 6):
             self.calculate_card_positions(self.get_cards().sve)
 
-        if not self.inventory_calculated:
+        if not self.inventory_calculated and len(self.game.get_netalon(self.__player)) == 6 and self.__player != -1:
             self.calculate_card_positions(self.game.get_netalon(self.__player))
 
         self.sync_inventory()
@@ -1199,16 +1171,6 @@ class Client:
         if self.animation_handler.has("#CREATE_NEW_GAME"):
             self.lobby_new_game_container.render()
 
-    def render_match_over_menu(self) -> None:
-        # TODO: now
-
-        self.match_over_menu_title.render()
-
-        self.menu_return_button.render()
-        self.menu_play_again_button.render()
-
-        self.canvas.blit(self.match_over_menu_canvas, (0, 0))
-
     def render_info(self) -> None:
         pygame.draw.line(self.info_canvas, self.attributes["__var_info_canvas_line_color"],
                          (0, 0), (0, self.info_canvas.get_height()))  # (0, 9) (0, height - 8)
@@ -1334,13 +1296,6 @@ class Client:
                     self.shown_zvanja_points = True
                     self.render_zvanja_points()
                 self.render_game_zvanje()
-
-        if self.animation_handler.has("#MATCH_OVER_SCREEN_FALL"):
-            self.match_over_menu_title.render()
-            self.menu_return_button.render()
-            self.menu_play_again_button.render()
-            self.canvas.blit(self.match_over_menu_canvas,
-                             (0, self.animation_handler.get_animation("#MATCH_OVER_SCREEN_FALL").get_current_data()))
 
     def render_calling_adut(self) -> None:
         surf = pygame.Surface(self.canvas.get_size(), pygame.SRCALPHA)
@@ -1681,6 +1636,9 @@ class Client:
                             data[7] = self.assets.font24
                         self.appear_text(t - data[2], data[3], data[4], data[5], data[6], data[1], data[7])
 
+                    if self.animation_handler.has("#MATCH_OVER_SCREEN_FALL") and t - data[2] >= data[1]:
+                        self.animation_handler.get_animation("#MATCH_OVER_SCREEN_FALL").finished = True
+
         for k in to_remove:
             if k in self.timed_actions[1]:
                 self.timed_actions[1].pop(k)
@@ -1726,6 +1684,21 @@ class Client:
     def end_current_match(self) -> None:
         self.send_data(Commands.END_MATCH)
         self.end_match = False
+        self.started_new_game = False
+
+    def close_game(self) -> None:
+        if "MATCH_OVER" in self.timed_actions[1]:
+            self.timed_actions[1].pop("MATCH_OVER")
+
+        self.animation_handler.remove_animation("#MATCH_OVER_SCREEN_FALL")
+        self.animation_handler.remove_animation("#BELOT_TEXT")
+
+        self.started_new_game = False
+
+        self.send_data(Commands.CLOSE_GAME)
+
+        self.game_state = ClientGameStates.LOBBY
+        self.play_btn.is_clicked = True
 
     def start_new_game(self) -> None:
         self.cards_on_table_positions_p1 = []
@@ -1797,6 +1770,7 @@ class Client:
 
     def sync_inventory(self) -> None:
         org_cards = self.get_cards().sve
+
         if self.game.get_current_game_state() is GameState.ZVANJE_ADUTA and not self.adut_dalje:
             org_cards = self.get_cards().netalon
 
@@ -2142,6 +2116,18 @@ class Client:
 
     def get_player(self) -> int:
         return self.__player
+
+    def get_game_name(self) -> str:
+        if not self.is_in_game() or not len(self.data["games"]):
+            return ""
+
+        games = self.data["games"].values()
+
+        for idx, g in enumerate(games):
+            if self.nickname in g.player_data:
+                break
+
+        return sorted(self.data["games"].items(), key=lambda g: g[1].start_time)[idx][0]
 
     def on_turn(self):
         return self.__player == self.game.player_turn

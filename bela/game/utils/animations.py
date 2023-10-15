@@ -154,11 +154,8 @@ class FallingScreenAnimation(Animation):
         if self.y >= self.stop_y:
             self.y = self.stop_y
 
-            self.vel = -self.vel * 0.5
-
-            if abs(self.vel) < self.acc and self.y == self.stop_y:
-                self.finished = True
-                self.just_finished = True
+            self.finished = True
+            self.just_finished = True
 
     def get_current_data(self) -> Any:
         return self.y

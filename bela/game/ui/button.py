@@ -17,7 +17,7 @@ class Button(UIObject):
                  center_x: bool = True, center_y: bool = True, text: str = None, img: Union[pygame.Surface, str] = None,
                  color: Optional[Color] = Colors.dark_red, icon: str = None, font_color: Color = Colors.black, bold: bool = False,
                  text_orientation: str = "center", padding: int = 0, border_color: Color = None, border_radius: int = 0,
-                 border_width: int = 2, hover_effects: bool = True, id_: int = None) -> None:
+                 border_width: int = 2, hover_effects: bool = True, hover_color: Color = None, id_: int = None, info: str = "") -> None:
 
         super().__init__(display, position, size, padding, border_color, border_radius, border_width)
 
@@ -29,6 +29,7 @@ class Button(UIObject):
         self.img = img
         self.icon = icon
         self.color = color
+        self.default_color = color
         self.font_color = font_color
         self.bold = bold
         self.text_orientation = text_orientation
@@ -39,7 +40,9 @@ class Button(UIObject):
         self.center_x = center_x
         self.center_y = center_y
         self.hover_effects = hover_effects
+        self.hover_color = hover_color
         self.id_ = id_
+        self.info = info
 
         self.label = None
         if self.text is not None:
@@ -141,9 +144,12 @@ class Button(UIObject):
 
         if self.color and self.hover_effects:
             if self.last_hovered and not self.is_hovering:  # e.i. on_exit()
-                self.color = self.color.darker(50)
+                self.color = self.default_color
             elif not self.last_hovered and self.is_hovering:  # e.i. on_enter()
-                self.color = self.color.brighter(50)
+                if self.hover_color:
+                    self.color = self.hover_color
+                else:
+                    self.color = self.color.brighter(50)
 
         self.last_hovered = self.is_hovering
         self.last_held = self.is_held

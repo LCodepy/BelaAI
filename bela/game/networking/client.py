@@ -193,7 +193,7 @@ class Client:
 
         def on_adut_btn_click(cls, x, y, btn):
             if cls.game.get_current_game_state() == GameState.ZVANJE_ADUTA:
-                cls.send_data(Commands.new(Commands.CALL_ADUT, btn.text))
+                cls.send_data(Commands.new(Commands.CALL_ADUT, btn.info))
                 cls.calculate_card_positions(cls.get_cards().sve)
 
         def on_dalje_btn_click(cls, x, y):
@@ -332,7 +332,12 @@ class Client:
             self.assets.font18,
             text="SORTIRAJ KARTE",
             font_color=Colors.white,
-            bold=True
+            color=Color(100, 100, 100, 10),
+            border_color=Color(150, 150, 150),
+            bold=True,
+            border_radius=5,
+            border_width=1,
+            hover_color=Color(250, 250, 250, 20)
         ).set_on_click_listener(on_sort_cards_btn_click, self)
 
         types = ["karo", "pik", "herc", "tref"]
@@ -342,9 +347,14 @@ class Client:
                 (self.canvas.get_width() // 2 + int(100 * (0.5 - i)), self.canvas.get_height() // 2),
                 (50, 50),
                 self.assets.font18,
-                text=types[i + 1],
-                font_color=Colors.white,
-                bold=True
+                img=self.assets.symbols[types[i + 1]],
+                color=Color(100, 100, 100, 10),
+                border_color=Color(150, 150, 150),
+                bold=True,
+                border_radius=5,
+                border_width=1,
+                hover_color=Color(250, 250, 250, 20),
+                info=types[i+1]
             ).set_on_click_listener(on_adut_btn_click, self, pass_self=True) for i in range(-1, 3)
         ]
 
@@ -355,7 +365,12 @@ class Client:
             self.assets.font18,
             text="DALJE",
             font_color=Colors.white,
-            bold=True
+            color=Color(100, 100, 100, 10),
+            border_color=Color(150, 150, 150),
+            bold=True,
+            border_radius=5,
+            border_width=1,
+            hover_color=Color(250, 250, 250, 20)
         ).set_on_click_listener(on_dalje_btn_click, self)
 
         self.nema_zvanja_button = Button(
@@ -365,7 +380,12 @@ class Client:
             self.assets.font18,
             text="NEMAM ZVANJA",
             font_color=Colors.white,
-            bold=True
+            color=Color(100, 100, 100, 10),
+            border_color=Color(150, 150, 150),
+            bold=True,
+            border_radius=5,
+            border_width=1,
+            hover_color=Color(250, 250, 250, 20)
         ).set_on_click_listener(on_nema_zvanja_btn_click, self)
 
         self.ima_zvanja_button = Button(
@@ -375,7 +395,12 @@ class Client:
             self.assets.font18,
             text="ZOVEM",
             font_color=Colors.white,
-            bold=True
+            color=Color(100, 100, 100, 10),
+            border_color=Color(150, 150, 150),
+            bold=True,
+            border_radius=5,
+            border_width=1,
+            hover_color=Color(250, 250, 250, 20)
         ).set_on_click_listener(on_ima_zvanja_btn_click, self)
 
         self.zvanja_label = Label(
@@ -500,6 +525,7 @@ class Client:
             self.animation_handler.get_animation("#MATCH_OVER_SCREEN_FALL").is_finished()
         ):
             self.game_started = False
+            self.close_game()
 
     def update_menu(self) -> None:
         self.play_btn.update(self.event_handler)
@@ -1137,8 +1163,6 @@ class Client:
             self.render_lobby()
         elif self.game_state is ClientGameStates.MAIN_MENU:
             self.render_menu()
-        elif self.game_state is ClientGameStates.MATCH_OVER_MENU:
-            self.render_match_over_menu()
 
         self.render_info()
 
@@ -1691,7 +1715,8 @@ class Client:
             self.timed_actions[1].pop("MATCH_OVER")
 
         self.animation_handler.remove_animation("#MATCH_OVER_SCREEN_FALL")
-        self.animation_handler.remove_animation("#BELOT_TEXT")
+        if self.animation_handler.has("#BELOT_TEXT"):
+            self.animation_handler.remove_animation("#BELOT_TEXT")
 
         self.started_new_game = False
 

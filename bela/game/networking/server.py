@@ -126,7 +126,6 @@ class Server:
                             response["game"] = self.games[game_name]
                             response["data"] = {}
                             player_id = self.games[game_name].player_data.index(nickname)
-                            print("SERVER", nickname, ": ", player_id)
 
                         connection.sendall(pickle.dumps(response))
 

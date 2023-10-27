@@ -348,12 +348,14 @@ class Client:
                 (50, 50),
                 self.assets.font18,
                 img=self.assets.symbols[types[i + 1]],
-                color=Color(100, 100, 100, 10),
+                color=Color(50, 50, 50, 120),
                 border_color=Color(150, 150, 150),
                 bold=True,
+                padding=8,
                 border_radius=5,
                 border_width=1,
                 hover_color=Color(250, 250, 250, 20),
+                render_with_img=True,
                 info=types[i+1]
             ).set_on_click_listener(on_adut_btn_click, self, pass_self=True) for i in range(-1, 3)
         ]

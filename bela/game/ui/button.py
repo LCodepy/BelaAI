@@ -17,7 +17,8 @@ class Button(UIObject):
                  center_x: bool = True, center_y: bool = True, text: str = None, img: Union[pygame.Surface, str] = None,
                  color: Optional[Color] = Colors.dark_red, icon: str = None, font_color: Color = Colors.black, bold: bool = False,
                  text_orientation: str = "center", padding: int = 0, border_color: Color = None, border_radius: int = 0,
-                 border_width: int = 2, hover_effects: bool = True, hover_color: Color = None, id_: int = None, info: str = "") -> None:
+                 border_width: int = 2, hover_effects: bool = True, hover_color: Color = None, render_with_img: bool = False,
+                 id_: int = None, info: str = "") -> None:
 
         super().__init__(display, position, size, padding, border_color, border_radius, border_width)
 
@@ -41,6 +42,7 @@ class Button(UIObject):
         self.center_y = center_y
         self.hover_effects = hover_effects
         self.hover_color = hover_color
+        self.render_with_img = render_with_img
         self.id_ = id_
         self.info = info
 
@@ -55,9 +57,13 @@ class Button(UIObject):
         else:
             self.w, self.h = size
 
-        if self.padding is not None and self.label:
-            self.w += max(self.padding - (self.w - self.label.get_size()[0]), 0)
-            self.h += max(self.padding - (self.h - self.label.get_size()[1]), 0)
+        if self.padding is not None:
+            if self.label:
+                self.w += max(self.padding - (self.w - self.label.get_size()[0]), 0)
+                self.h += max(self.padding - (self.h - self.label.get_size()[1]), 0)
+            if self.img:
+                self.w += self.padding
+                self.h += self.padding
 
         if not center_x:
             self.x += self.w // 2
@@ -112,9 +118,13 @@ class Button(UIObject):
         else:
             self.w, self.h = self.size
 
-        if self.padding is not None and self.label:
-            self.w += max(self.padding - (self.w - self.label.get_size()[0]), 0)
-            self.h += max(self.padding - (self.h - self.label.get_size()[1]), 0)
+        if self.padding is not None:
+            if self.label:
+                self.w += max(self.padding - (self.w - self.label.get_size()[0]), 0)
+                self.h += max(self.padding - (self.h - self.label.get_size()[1]), 0)
+            if self.img:
+                self.w += self.padding
+                self.h += self.padding
 
         if not self.center_x:
             self.x += self.w // 2
@@ -198,6 +208,8 @@ class Button(UIObject):
         if self.img is None:
             self.render_non_image()
         else:
+            if self.render_with_img:
+                self.render_non_image()
             self.render_image()
 
         if self.label:
@@ -236,7 +248,7 @@ class Button(UIObject):
             if self.img == "o":
                 pygame.draw.circle(self.display, self.border_color.c, self.rect.center, self.rect.w // 2)
         else:
-            self.display.blit(self.img, (self.rect.x, self.rect.y))
+            self.display.blit(self.img, (self.rect.x + self.padding // 2, self.rect.y + self.padding // 2))
 
     def on_hover(self, x: int, y: int) -> None:
         pass
